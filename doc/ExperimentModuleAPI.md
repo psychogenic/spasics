@@ -93,6 +93,7 @@ Retrieve the last results returned by the given experiment.
 
 
 
+
 ### Schedule
 
 Managing scheduled operations.  These may be specific experiment runs or management operations including any of the *System Level* commands.
@@ -119,6 +120,13 @@ Insert an item (experiment or operation) into the schedule at a specific positio
 #### SCHEDULE_REMOVE
 
 Remove an item from the schedule.
+
+
+#### SCHEDULE_RUN_REPORTS
+
+Get any data queued for transmission by experiments/actions run by the shedule.
+
+
 
 
 
