@@ -22,6 +22,8 @@ In addition to feedback on the PRD itself, the following require further work, f
    
    * A byte-efficient means of patching the system.  Some updates may only be changes to a few lines of code, what is the most effective means of transmitting this data?  Also TBD in [Firmware Updates](doc/FirmwareUpdates.md).
    
+   * Resilient data stores for outgoing data queues, log data, scheduling information etc 
+   
    * Implementation code for above, once defined
    
    * More TODOs
