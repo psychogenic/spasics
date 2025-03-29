@@ -236,16 +236,18 @@ Core assumptions to be confirmed or amended.
 1.  Module will be powered on at least 6 hours of every 24
     
 2.  Under standard operating conditions, power delivery will be uninterrupted for periods of at least 20 minutes
+
+3.  While powered, over any period of 60 seconds there will always be at least one I2C data communication transaction addressed to the module
     
-3.  Ambient/materials in physical contact with the experiment module will always be between -40 and +80 degrees Celsius
+4.  Ambient/materials in physical contact with the experiment module will always be between -40 and +80 degrees Celsius
     
-4.  Assuming a ground plane connected via 4x 0.5mm thermal reliefs to the large plated through hole in the centre of the PCB, in combination of mechanical fastening and electrical connectivity of the experiment module is sufficient to draw and dissipate a steady 115mW of waste heat.
+5.  Assuming a ground plane connected via 4x 0.5mm thermal reliefs to the large plated through hole in the centre of the PCB, in combination of mechanical fastening and electrical connectivity of the experiment module is sufficient to draw and dissipate a steady 115mW of waste heat.
     
-5.  The satellite can hold and write blocks of at least 50kB of data to the experiment module (split into an appropriate number of 8 byte payload write transactions)
+6.  The satellite can hold and write blocks of at least 50kB of data to the experiment module (split into an appropriate number of 8 byte payload write transactions)
     
-6.  Writes of larger blocks of data, as described in the previous point, will occur sequentially and over a period of continuously powered operation
+7.  Writes of larger blocks of data, as described in the previous point, will occur sequentially and over a period of continuously powered operation
     
-7.  We may queue both simple write commands, sending data to the experiment module, and write+read sequences where we expect a blob of data to be written followed by a read, specifying how many read operations to perform (and hence how much data to retrieve for transmission)
+8.  We may queue both simple write commands, sending data to the experiment module, and write+read sequences where we expect a blob of data to be written followed by a read, specifying how many read operations to perform (and hence how much data to retrieve for transmission)
     
 
 ### 6 Success Criteria
