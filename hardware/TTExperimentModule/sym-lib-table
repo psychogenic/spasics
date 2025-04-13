@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "spasic")(type "KiCad")(uri "${KIPRJMOD}/spasic.kicad_sym")(options "")(descr ""))
+)
