@@ -13,7 +13,7 @@ Thus, to the maximum extent possible, parts and pinouts were preserved, while ma
 
 ## Board 
 
-[Explore the design online using KiCanvas](https://kicanvas.org/?github=https%3A%2F%2Fgithub.com%2Fpsychogenic%2Fspasics%2Fhardware%2FTTExperimentModule%2F)
+[Explore the design online using KiCanvas](https://kicanvas.org/?github=https%3A%2F%2Fgithub.com%2Fpsychogenic%2Fspasics%2Ftree%2Fmain%2Fhardware%2FTTExperimentModule)
 
 The basic schematic is
 
