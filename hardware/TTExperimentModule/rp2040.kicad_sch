@@ -2230,16 +2230,27 @@
 		)
 		(uuid "5be1e41c-2a97-4a51-b38e-e917ee8aaa7b")
 	)
-	(text "Quad SPI requires QE bit in \nstatus register-2 to be set.\nIn this case, ~{WP} becomes \nIO2 and ~{HOLD} becomes IO3."
+	(text "Quad SPI requires QE bit in \nstatus register-2 to be set.\nIn this case, ~{WP} becomes \nIO2 and ~{HOLD} becomes IO3.\n\"IQ\" and \"JQ\" parts  have this\nset to 1 by default."
 		(exclude_from_sim no)
 		(at 66.04 195.58 0)
 		(effects
 			(font
-				(size 1.27 1.27)
+				(size 1 1)
 			)
 			(justify left bottom)
 		)
 		(uuid "7ed1775c-4c98-4d65-80dc-744a506ea92c")
+	)
+	(text "SS suffix is the 208-mil version (5.3x5.3)\nSN suffix is the 150-mil SOIC-8 (4x5)\nSN has less height to it, making a 1.0mm board\nsafe for our 3mm total height constraint."
+		(exclude_from_sim no)
+		(at 12.7 192.278 0)
+		(effects
+			(font
+				(size 1 1)
+			)
+			(justify left)
+		)
+		(uuid "910e5556-8367-47aa-9ac6-6907be314722")
 	)
 	(text "Factory test\nmode: GND"
 		(exclude_from_sim no)
@@ -5872,7 +5883,25 @@
 			"bWU9IkltYWdlIFZpZXdlciIgZXhlYz0iJmFwb3M7ZW9nICV1JmFwb3M7IiBtb2RpZmllZD0iMjAy"
 			"NS0wMy0yOVQyMDoxNDo0My41NjEyODNaIiBjb3VudD0iMSIvPgogICAgICAgIDwvYm9va21hcms6"
 			"YXBwbGljYXRpb25zPgogICAgICA8L21ldGFkYXRhPgogICAgPC9pbmZvPgogIDwvYm9va21hcms+"
-			"CiAgPGJvb2ttYXJrIGhyZWY9ImZpbGU6Lw=="
+			"CiAgPGJvb2ttYXJrIGhyZWY9ImZpbGU6LwBRAAAATgAAAGcAAABXAAAAawAAADUAAABlAAAAOAAA"
+			"ADEAAAB0AAAAOAAAADYAAABJAAAAUgAAAFgAAAAvAAAAVQAAAFgAAAB4AAAANgAAAHEAAABvAAAA"
+			"NgAAAEIAAAB0AAAALwAAAEcAAAAyAAAAbAAAAEIAAAAvAAAAZwAAAE0AAABPAAAARQAAAEMAAABZ"
+			"AAAANgAAADYAAAArAAAAZgAAAFEAAAA0AAAAMgAAAGkAAAB6AAAAQgAAADkAAABMAAAAbAAAAGMA"
+			"AABRAAAAMwAAADIAAAB1AAAALwAAAFkAAAB5AAAAdgAAAGYAAAA1AAAAagAAAHQAAAA4AAAAUAAA"
+			"AG8AAABWAAAARAAAAGEAAABiAAAAeAAAAGMAAABOAAAAKwAAAHgAAAAxAAAAaAAAAFUAAAB2AAAA"
+			"bAAAAE0AAABzAAAAQQAAADYAAABJAAAAMgAAAGEAAABHAAAAeQAAAFUAAABNAAAAQwAAAGIAAABB"
+			"AAAAMwAAADYAAABxAAAAcgAAAGQAAABLAAAAYwAAADkAAAByAAAANgAAAFoAAABmAAAAVwAAAGwA"
+			"AAA3AAAAWgAAAEUAAABSAAAALwAAACsAAABTAAAANwAAAFIAAABVAAAAeQAAAGYAAAAxAAAAUwAA"
+			"AFAAAAB1AAAAcwAAAEMAAABUAAAAegAAAE0AAAAxAAAAUAAAAHUAAABzAAAAMQAAAGYAAAB1AAAA"
+			"TQAAAHEAAAAxAAAATQAAAFAAAABsAAAAVwAAAFUAAAA2AAAAZgAAAC8AAABZAAAASgAAAHMAAAA3"
+			"AAAATwAAAHcAAAAxAAAAdAAAAHIAAABTAAAARQAAAHQAAABQAAAAbgAAAGgAAABWAAAAVAAAAG8A"
+			"AABHAAAAeAAAAHgAAAA4AAAAUwAAAGgAAABIAAAAQwAAAE4AAABIAAAAWAAAAHoAAABmAAAAMAAA"
+			"AFUAAABhAAAANQAAAEUAAAA1AAAAZgAAADgAAAAxAAAAagAAAFMAAABNAAAANQAAAHAAAABsAAAA"
+			"dAAAAG0AAABNAAAAagAAAGoAAABPAAAAUQAAAFcAAABzAAAAVwAAAGUAAABGAAAAcgAAAG8AAAA4"
+			"AAAAKwAAAHkAAABHAAAARAAAADIAAABiAAAAaAAAAFIAAABOAAAATwAAAHQAAAA1AAAARQAAAEsA"
+			"AAAzAAAAQgAAAGYAAAA5AAAAeQAAAEgAAABxAAAAaAAAAHYAAABiAAAAQgAAAGUAAAB3AAAAZQAA"
+			"AE4AAABGAAAAbwAAAGIAAABvAAAAdAAAAEMAAAB2AAAAVAAAAHQAAABKAAAANAAAAFYAAABBAAAA"
+			"egAAAHMAAABsAAAAdQAAAFcAAABrAAAASA=="
 		)
 	)
 	(label "QSPI_SD2"
@@ -9368,7 +9397,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "W25Q32JVSS"
+		(property "Value" "W25Q32JVSN"
 			(at 52.07 189.23 0)
 			(effects
 				(font
@@ -9377,7 +9406,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x5.3mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 50.8 180.34 0)
 			(effects
 				(font
@@ -9404,7 +9433,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "W25Q32JVSSIQ"
+		(property "MPN" "W25Q32JVSNIQ TR"
 			(at 50.8 180.34 0)
 			(effects
 				(font
@@ -9413,7 +9442,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" "W25Q32JVSSIQ-ND"
+		(property "DigikeyPN" "256-W25Q32JVSNIQTRCT-ND"
 			(at 50.8 180.34 0)
 			(effects
 				(font
@@ -9467,7 +9496,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C82344"
+		(property "LCSC" "C5355146"
 			(at 50.8 180.34 0)
 			(effects
 				(font

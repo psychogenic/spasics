@@ -5,7 +5,7 @@
       "Application": "Pcbnew",
       "Version": "9.0.1-9.0.1-0~ubuntu22.04.1"
     },
-    "CreationDate": "2025-04-13T11:09:07-04:00"
+    "CreationDate": "2025-04-15T01:02:31-04:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
@@ -18,8 +18,9 @@
       "Y": 30.12
     },
     "LayerNumber": 4,
-    "BoardThickness": 1.147,
-    "Finish": "None"
+    "BoardThickness": 0.926,
+    "Finish": "ENIG",
+    "Castellated": true
   },
   "DesignRules": [
     {
@@ -28,8 +29,8 @@
       "PadToTrack": 0.16,
       "TrackToTrack": 0.2,
       "MinLineWidth": 0.16,
-      "TrackToRegion": 0.5,
-      "RegionToRegion": 0.5
+      "TrackToRegion": 0.4,
+      "RegionToRegion": 0.4
     },
     {
       "Layers": "Inner",
@@ -37,8 +38,8 @@
       "PadToTrack": 0.0,
       "TrackToTrack": 0.2,
       "MinLineWidth": 0.2,
-      "TrackToRegion": 0.5,
-      "RegionToRegion": 0.5
+      "TrackToRegion": 0.4,
+      "RegionToRegion": 0.4
     }
   ],
   "FilesAttributes": [
@@ -126,7 +127,7 @@
     },
     {
       "Type": "Dielectric",
-      "Thickness": 0.196,
+      "Thickness": 0.1855,
       "Material": "FR4",
       "Name": "F.Cu/In1.Cu",
       "Notes": "Type: dielectric layer 1 (from F.Cu to In1.Cu)"
@@ -138,7 +139,7 @@
     },
     {
       "Type": "Dielectric",
-      "Thickness": 0.63,
+      "Thickness": 0.43,
       "Material": "FR4",
       "Name": "In1.Cu/In2.Cu",
       "Notes": "Type: dielectric layer 2 (from In1.Cu to In2.Cu)"
@@ -150,7 +151,7 @@
     },
     {
       "Type": "Dielectric",
-      "Thickness": 0.196,
+      "Thickness": 0.1855,
       "Material": "FR4",
       "Name": "In2.Cu/B.Cu",
       "Notes": "Type: dielectric layer 3 (from In2.Cu to B.Cu)"
