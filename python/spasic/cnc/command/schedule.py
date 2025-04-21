@@ -1,0 +1,20 @@
+'''
+@author: Pat Deegan
+@copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
+'''
+
+from spasic.cnc.command.command import Command
+from spasic.experiment_runner.experiment import Experiment
+
+
+class ScheduleCommand(Command):
+    pass 
+
+class RunImmediate(ScheduleCommand):
+    def __init__(self, exp:Experiment):
+        self.experiment = exp
+        
+    
+    def __repr__(self):
+        return f'<RunImmediate for {self.experiment}>'
+    
