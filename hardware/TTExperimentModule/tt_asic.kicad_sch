@@ -4904,7 +4904,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 66.04 158.75 0)
 			(effects
 				(font
@@ -4939,7 +4939,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 71.12 156.21 0)
 			(effects
 				(font
@@ -4984,13 +4984,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 71.12 156.21 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 71.12 156.21 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -5025,7 +5033,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 33.02 148.59 0)
 			(effects
 				(font
@@ -5060,7 +5068,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 38.1 146.05 0)
 			(effects
 				(font
@@ -5105,13 +5113,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 38.1 146.05 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 38.1 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -5214,7 +5230,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C_1u_0603_50V"
+		(property "Value" "1uF"
 			(at 76.2 39.37 0)
 			(effects
 				(font
@@ -5251,7 +5267,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "GRT188R61H105KE13D"
+		(property "MPN" "LMK107B7105KAHT"
 			(at 85.09 31.75 90)
 			(effects
 				(font
@@ -5260,7 +5276,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" "490-12330-1-ND"
+		(property "DigikeyPN" "587-3410-1-ND"
 			(at 82.55 33.02 90)
 			(effects
 				(font
@@ -5323,7 +5339,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C5673"
+		(property "LCSC" ""
 			(at 76.2 36.83 0)
 			(effects
 				(font
@@ -5366,7 +5382,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 58.801 147.2621 0)
 			(effects
 				(font
@@ -5402,7 +5418,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 55.88 146.05 0)
 			(effects
 				(font
@@ -5447,13 +5463,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 55.88 146.05 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 55.88 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -5555,7 +5579,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C_1u_0603_50V"
+		(property "Value" "1uF"
 			(at 67.31 39.37 0)
 			(effects
 				(font
@@ -5592,7 +5616,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "GRT188R61H105KE13D"
+		(property "MPN" "LMK107B7105KAHT"
 			(at 76.2 31.75 90)
 			(effects
 				(font
@@ -5601,7 +5625,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" "490-12330-1-ND"
+		(property "DigikeyPN" "587-3410-1-ND"
 			(at 73.66 33.02 90)
 			(effects
 				(font
@@ -5664,7 +5688,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C5673"
+		(property "LCSC" ""
 			(at 67.31 36.83 0)
 			(effects
 				(font
@@ -5707,7 +5731,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 81.661 157.4221 0)
 			(effects
 				(font
@@ -5743,7 +5767,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 78.74 156.21 0)
 			(effects
 				(font
@@ -5788,13 +5812,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 78.74 156.21 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 78.74 156.21 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -5831,7 +5863,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 51.181 185.3621 0)
 			(effects
 				(font
@@ -5867,7 +5899,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 48.26 184.15 0)
 			(effects
 				(font
@@ -5912,13 +5944,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 48.26 184.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 48.26 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -6271,7 +6311,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "RMCF1206ZG0R00"
 			(at 127 41.91 0)
 			(effects
 				(font
@@ -6289,7 +6329,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" ""
+		(property "DigikeyPN" "738-RMCF1206ZG0R00CT-ND"
 			(at 127 41.91 0)
 			(effects
 				(font
@@ -6562,7 +6602,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C_1u_0603_50V"
+		(property "Value" "1uF"
 			(at 85.09 39.37 0)
 			(effects
 				(font
@@ -6599,7 +6639,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "GRT188R61H105KE13D"
+		(property "MPN" "LMK107B7105KAHT"
 			(at 93.98 31.75 90)
 			(effects
 				(font
@@ -6608,7 +6648,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" "490-12330-1-ND"
+		(property "DigikeyPN" "587-3410-1-ND"
 			(at 91.44 33.02 90)
 			(effects
 				(font
@@ -6671,7 +6711,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C5673"
+		(property "LCSC" ""
 			(at 85.09 36.83 0)
 			(effects
 				(font
@@ -6712,7 +6752,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 17.78 148.59 0)
 			(effects
 				(font
@@ -6747,7 +6787,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 22.86 146.05 0)
 			(effects
 				(font
@@ -6792,13 +6832,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 22.86 146.05 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 22.86 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -7021,7 +7069,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "ERJ-H2GJ102X"
 			(at 139.7 153.67 0)
 			(effects
 				(font
@@ -7039,7 +7087,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" ""
+		(property "DigikeyPN" "10-ERJ-H2GJ102XCT-ND"
 			(at 139.7 153.67 0)
 			(effects
 				(font
@@ -7066,7 +7114,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C202394"
+		(property "LCSC" ""
 			(at 139.7 153.67 0)
 			(effects
 				(font
@@ -7369,7 +7417,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "C_1u_0603_50V"
+		(property "Value" "1uF"
 			(at 21.59 25.4 0)
 			(effects
 				(font
@@ -7406,7 +7454,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "GRT188R61H105KE13D"
+		(property "MPN" "LMK107B7105KAHT"
 			(at 30.48 17.78 90)
 			(effects
 				(font
@@ -7415,7 +7463,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" "490-12330-1-ND"
+		(property "DigikeyPN" "587-3410-1-ND"
 			(at 27.94 19.05 90)
 			(effects
 				(font
@@ -7478,7 +7526,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C5673"
+		(property "LCSC" ""
 			(at 21.59 22.86 0)
 			(effects
 				(font
@@ -7521,7 +7569,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C_1u_0603_50V"
+		(property "Value" "1uF"
 			(at 43.18 39.37 0)
 			(effects
 				(font
@@ -7558,7 +7606,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "GRT188R61H105KE13D"
+		(property "MPN" "LMK107B7105KAHT"
 			(at 52.07 31.75 90)
 			(effects
 				(font
@@ -7567,7 +7615,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" "490-12330-1-ND"
+		(property "DigikeyPN" "587-3410-1-ND"
 			(at 49.53 33.02 90)
 			(effects
 				(font
@@ -7630,7 +7678,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C5673"
+		(property "LCSC" ""
 			(at 43.18 36.83 0)
 			(effects
 				(font
@@ -7673,7 +7721,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 41.021 185.3621 0)
 			(effects
 				(font
@@ -7709,7 +7757,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 38.1 184.15 0)
 			(effects
 				(font
@@ -7754,13 +7802,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 38.1 184.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 38.1 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -7797,7 +7853,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 30.861 185.3621 0)
 			(effects
 				(font
@@ -7833,7 +7889,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 27.94 184.15 0)
 			(effects
 				(font
@@ -7878,13 +7934,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 27.94 184.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 27.94 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -8453,7 +8517,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "RMCF1206ZG0R00"
 			(at 140.97 41.91 0)
 			(effects
 				(font
@@ -8471,7 +8535,7 @@
 				(hide yes)
 			)
 		)
-		(property "DigikeyPN" ""
+		(property "DigikeyPN" "738-RMCF1206ZG0R00CT-ND"
 			(at 140.97 41.91 0)
 			(effects
 				(font
@@ -8762,7 +8826,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C202394"
+		(property "LCSC" ""
 			(at 149.86 105.41 0)
 			(effects
 				(font
@@ -9131,7 +9195,7 @@
 				)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 49.53 148.59 0)
 			(effects
 				(font
@@ -9166,7 +9230,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 45.72 146.05 0)
 			(effects
 				(font
@@ -9211,13 +9275,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 45.72 146.05 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 45.72 146.05 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
@@ -9254,7 +9326,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "0.1uf"
+		(property "Value" "100nF"
 			(at 17.3991 185.3621 0)
 			(effects
 				(font
@@ -9290,7 +9362,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "CL05A104KA5NNNC"
+		(property "MPN" "GCM155L81E104KE02D"
 			(at 20.32 184.15 0)
 			(effects
 				(font
@@ -9335,13 +9407,21 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C100072"
+		(property "LCSC" ""
 			(at 20.32 184.15 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
+			)
+		)
+		(property "DigikeyPN" "490-18203-1-ND"
+			(at 20.32 184.15 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
 		(pin "1"
