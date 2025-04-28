@@ -27,6 +27,11 @@ SystemWatchdog (class that handles running Experiments, and manages timeouts/res
 
 import time
 from machine import Timer, reset, WDT
+from spasic.util.coresync import CoreSynchronizer
+import spasic.cnc.response.response as rsp
+import spasic.settings as sts
+
+
 SystemWatchdogTimerTimeoutMs = 6500
 
 from spasic.experiment_runner.experiment import Experiment, ExperimentResult
@@ -53,13 +58,13 @@ class SystemWatchdog:
     WATCHING=2
     DONE=3
     TIMEDOUT=4
-    def __init__(self, timer_period_ms=2000):
+    def __init__(self, coreSync:CoreSynchronizer, timer_period_ms=2000):
         
         if timer_period_ms > (SystemWatchdogTimerTimeoutMs / 2):
             print("Won't allow timer period more than half the WDT timeout")
             timer_period_ms = int(SystemWatchdogTimerTimeoutMs / 2)
         
-        
+        self.core_sync = coreSync
         self.start_time = 0
         self.max_time = 0
         self.status = self.STARTUP
@@ -67,12 +72,32 @@ class SystemWatchdog:
         self.timer = Timer(-1)
         self.status = self.IDLE
         self.current_experiment = None
+        self._exp_run_queue = []
+        self.wdt = None 
 
     def enable(self):
         self.timer.init(period=self.timer_period_ms, mode=Timer.PERIODIC, callback=self._timer_callback)
-        self.wdt = WDT(timeout=SystemWatchdogTimerTimeoutMs)  
+        if sts.WatchdogEnable:
+            self.wdt = WDT(timeout=SystemWatchdogTimerTimeoutMs)  
         
-        
+    def queue_experiment_run(self, exp:Experiment):
+        self._exp_run_queue.append(exp)
+        return True
+    
+    @property
+    def experiment_queue_length(self):
+        return len(self._exp_run_queue)
+    
+    def run_next_experiment(self):
+        if not self.experiment_queue_length:
+            return
+        exp = self._exp_run_queue[0]
+        if self.experiment_queue_length < 2:
+            self._exp_run_queue = []
+        else:
+            self._exp_run_queue = self._exp_run_queue[1:]
+            
+        self.run(exp)
         
     def run(self, exp:Experiment):
         print(f'Running experiment {exp.id} (max duration {exp.timeout_s} secs)')
@@ -83,7 +108,7 @@ class SystemWatchdog:
         
         self.status = self.WATCHING
         try:
-            experimentResult.result = exp.run(experimentResult)
+            # exp.run(experimentResult)
             print(f'\nRES:\t{experimentResult.result}')
             print(f'Report:\t{experimentResult.report}')
             experimentResult.run_completed = True
@@ -93,15 +118,18 @@ class SystemWatchdog:
             
         experimentResult.end_time = time.time()
         self.status = self.DONE
-        
+        try:
+            self.core_sync.response_queue.put(rsp.ResponseExperiment(exp.id, experimentResult.report))
+        except Exception as e:
+            print(f'Exception creating response: {e}')
         return experimentResult
         
         
         
     def _timer_callback(self, timer):
         
-        
-        self.wdt.feed() # always, ALWAYS, feed the watchdog
+        if self.wdt is not None:
+            self.wdt.feed() # always, ALWAYS, feed the watchdog
         
         if self.status != self.WATCHING:
             return 

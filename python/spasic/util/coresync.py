@@ -15,6 +15,7 @@ class CoreSynchronizer:
     def __init__(self):
         self.lock = _thread.allocate_lock()
         self.command_queue = Queue()
+        self.response_queue = Queue()
         
         
         

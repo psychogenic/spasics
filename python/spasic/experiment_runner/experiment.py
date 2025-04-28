@@ -26,15 +26,11 @@ class Experiment:
          * a number of result bytes the function will return; and
          * a maximum execution time (in seconds).
     '''
-    def __init__(self, uid:int, timeout_s:int, run_func, result_num_bytes:int=4):
+    def __init__(self, uid:int, timeout_s:int, run_func, result_num_bytes:int=12):
         self.id = uid 
         self.result_num_bytes = result_num_bytes
         self.timeout_s = timeout_s 
-        self.func = run_func 
-        
-    def run(self, intermediateResponse:ExperimentResponse):
-        f = self.func 
-        return f(intermediateResponse)
+        self.run = run_func 
         
     def __repr__(self):
         return f'<Experiment {self.id}>'

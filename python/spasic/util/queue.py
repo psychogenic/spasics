@@ -6,7 +6,7 @@ import _thread
 import time
 
 SpinLockSleepTimeMs = 2
-
+RaiseErrors = False
 
 
 class QueueFull(Exception):
@@ -40,10 +40,13 @@ class Queue:
     def put(self, item, block=True):
         
         while self.full():
-            if not block:
-                raise QueueFull("q full,noblk")
             if SpinLockSleepTimeMs > 0:
                 time.sleep_ms(SpinLockSleepTimeMs)
+            if not block:
+                if RaiseErrors:
+                    raise QueueFull("q full,noblk")
+                return False
+            
             
         self.lock.acquire()
         self._q.append(item)
@@ -52,10 +55,12 @@ class Queue:
     def get(self, block=True):
         
         while self.empty():
-            if not block:
-                raise QueueEmpty("q empty,noblk")
             if SpinLockSleepTimeMs > 0:
                 time.sleep_ms(SpinLockSleepTimeMs)
+            if not block:
+                if RaiseErrors:
+                    raise QueueEmpty("q empty,noblk")
+                return None
             
         
         self.lock.acquire()

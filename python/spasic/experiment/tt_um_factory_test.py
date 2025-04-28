@@ -107,7 +107,7 @@ async def test_will_skip(dut):
 
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=300, timeout_unit='us')
 async def test_edge_triggers(dut):
     dut._log.info("Start")
 

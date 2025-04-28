@@ -11,10 +11,10 @@ class ScheduleCommand(Command):
     pass 
 
 class RunImmediate(ScheduleCommand):
-    def __init__(self, exp:Experiment):
-        self.experiment = exp
+    def __init__(self, experiment_id:int):
+        self.experiment_id = experiment_id
         
     
     def __repr__(self):
-        return f'<RunImmediate for {self.experiment}>'
+        return f'<RunImmediate for {self.experiment_id}>'
     

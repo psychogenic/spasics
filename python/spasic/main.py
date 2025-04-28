@@ -17,7 +17,7 @@ from spasic.experiment_runner.experiment import Experiment, ExperimentResponse
 def requestHandler(coreSync:CoreSynchronizer):
     
     expRunnerAndWatchdog = SystemWatchdog()
-    commandHandler = CommandHandler(expRunnerAndWatchdog)
+    commandHandler = CommandHandler(coreSync, expRunnerAndWatchdog)
     expRunnerAndWatchdog.enable()
     
     while True:

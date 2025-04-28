@@ -1,0 +1,3 @@
+[submodule "python/tt-micropython-firmware"]
+	path = python/tt-micropython-firmware
+	url = https://github.com/psychogenic/tt-micropython-firmware.git

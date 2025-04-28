@@ -9,10 +9,10 @@ from spasic.cnc.handler.system import SysCmdHandler
 from spasic.cnc.handler.schedule import ScheduleCmdHandler
 
 class CommandHandler(HandlerBase):
-    def __init__(self, wdogAndRunner):
-        super().__init__(wdogAndRunner)
-        self.sys_handler = SysCmdHandler(wdogAndRunner)
-        self.sched_handler = ScheduleCmdHandler(wdogAndRunner)
+    def __init__(self, coreSync, wdogAndRunner):
+        super().__init__(coreSync, wdogAndRunner)
+        self.sys_handler = SysCmdHandler(coreSync, wdogAndRunner)
+        self.sched_handler = ScheduleCmdHandler(coreSync, wdogAndRunner)
     
     def handle(self, cmd:Command):
         
