@@ -71,7 +71,7 @@ So I had to go deep into the weeds and code up a micropython C module to get it 
 
 You'll therefore need a version of uPython with this module built-in.  I have the uPython branch with the C module here: [https://github.com/psychogenic/micropython/tree/rp2-i2cslave](https://github.com/psychogenic/micropython/tree/rp2-i2cslave)
 
-Get that, and then copy:
+Get that, checkout the rp2-i2cslave branch (`git checkout rp2-i2cslave`), and then copy:
 
    * all the contents of the [ttboard module directory](https://github.com/TinyTapeout/tt-micropython-firmware/tree/main/src)
    
