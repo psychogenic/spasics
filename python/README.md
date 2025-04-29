@@ -42,6 +42,9 @@ If you want to test the entire codebase, you'll need two devices:
   
 and to wire them up with 3 shared lines: I2C SDA, SCL and a common ground.
 
+
+### satellite simulator
+
 For the satellite, there is [simulator code](./i2c_client_test.py) that can be installed on any micropython device, such as a Pi Pico, as `main.py` and allows you to use the REPL to talk over I2C to the spasics board. 
 
 This code knows how to craft messages and interpret what comes back and has useful methods, e.g.
