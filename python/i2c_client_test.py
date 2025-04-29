@@ -184,13 +184,31 @@ def random_exp2_params():
     return bytearray([iters, sub_exp])
     
 StressCount = 0
+RebootCount = 0
 def stressTest():
-    global StressCount 
+    global StressCount
+    global RebootCount
+    
+    
+    enableReboots = True
+    
+    
     StressCount = 0
+    RebootCount = 0
+    runningForeverLoop = False
     while True:
         StressCount += 1
-        
-        
+        print(f"Loop {StressCount}")
+        if runningForeverLoop:
+            runningForeverLoop = False
+            print("Aborting forever loop")
+            sim.abort()
+        else:
+            if random.randint(0, 100) > 60:
+                runningForeverLoop = True 
+                print("Starting forever loop")
+                sim.run_experiment_now(3)
+            
         sim.run_experiment_now(2, random_exp2_params())
         sim.status()
         sim.ping()
@@ -203,6 +221,13 @@ def stressTest():
         sim.status()
         sim.ping()
         sim.status()
+        if enableReboots and random.randint(0, 100) > 90:
+            RebootCount += 1
+            print(f"*** Rebooting {RebootCount} ***")
+            
+            sim.reboot()
+            time.sleep(12)
+            
         sim.ping()
         time.sleep(1.3)
         sim.status()
