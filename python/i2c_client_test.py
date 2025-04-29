@@ -5,6 +5,7 @@
 
 import machine 
 import time 
+import random
 
 SlaveAddress = 0x51 
 ResponseDelaySeconds = 0.5
@@ -151,32 +152,41 @@ def pingit():
         sim.ping()
         time.sleep(0.3)
 
+def random_exp2_params():
+    sub_exp = random.randint(0,1)
+    iters = random.randint(2, 12)
+    print(f"Running {sub_exp} {iters} times")
+    return bytearray([iters, sub_exp])
+    
 StressCount = 0
 def stressTest():
     global StressCount 
     StressCount = 0
     while True:
         StressCount += 1
+        
+        
+        sim.run_experiment_now(2, random_exp2_params())
+        sim.status()
+        sim.ping()
+        sim.status()
+        sim.ping()
+        sim.status()
+        time.sleep(1)
         sim.run_experiment_now(1)
-        sim.run_experiment_now(2)
-        sim.status()
         sim.ping()
         sim.status()
         sim.ping()
         sim.status()
         sim.ping()
+        time.sleep(1.3)
         sim.status()
-        sim.ping()
-        sim.status()
-        sim.ping()
-        time.sleep(0.8)
-        sim.status()
-        sim.run_experiment_now(2)
+        sim.run_experiment_now(2, random_exp2_params())
         time.sleep(1)
         sim.status()
         time.sleep(4)
         sim.status()
-        sim.run_experiment_now(2)
+        sim.run_experiment_now(2, random_exp2_params())
         sim.status()
         time.sleep(1)
         sim.status()
