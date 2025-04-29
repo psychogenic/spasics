@@ -122,10 +122,12 @@ class SatelliteSimulator:
         time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')
         
-    def run_experiment_now(self, experiment_id:int):
+    def run_experiment_now(self, experiment_id:int, args:bytearray=None):
         print(f"Requesting run of experiment {experiment_id}")
         bts = bytearray([ord('E')])
         bts += experiment_id.to_bytes(2, 'little')
+        if args:
+            bts += args
         self.send(bts)
         time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')

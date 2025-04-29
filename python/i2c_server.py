@@ -89,9 +89,13 @@ def process_pending_data():
                                                       ERes.expid.to_bytes(2, 'little')))
                 return 
             
-            
+            exp_argument_bytes = None
             if len(payload):
-                exp_id = int.from_bytes(payload, 'little')
+                exp_id = int.from_bytes(payload[:2], 'little')
+                if len(payload) > 2:
+                    exp_argument_bytes = payload[2:]
+                    if len(exp_argument_bytes) < 10:
+                        exp_argument_bytes += bytearray(10 - len(exp_argument_bytes))
             else:
                 exp_id = 0
                 
@@ -102,7 +106,7 @@ def process_pending_data():
             
             ERes.expid = exp_id
             ERes.start()
-            ExpArgs.start()
+            ExpArgs.start(exp_argument_bytes)
             runner = ExperimentsAvailable[exp_id]
             
             _thread.start_new_thread(runner, (ExpArgs, ERes,))
