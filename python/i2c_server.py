@@ -5,19 +5,20 @@
 
 
 import time
+import machine
 import _thread
-from spasic.util.coresync import CoreSynchronizer
-import spasic.settings as sts
-from spasic.util.time import set_datetime
-from spasic.i2c.device import I2CDevice
-from spasic.i2c.parser import I2CInDataParser, i2cInDataReceived
-from spasic.cnc.command.command import Command 
-import spasic.cnc.command.schedule as cmd_sch
-import spasic.cnc.command.system as cmd_sys
 import spasic.cnc.response.response as rsp
+import spasic.settings as sts
+from spasic.i2c.device import I2CDevice
 import spasic.error_codes as error_codes
 from spasic.experiment.experiment_result import ExpResult
 import spasic.experiment.tt_um_factory_test.loader as ldr
+
+
+ERes = ExpResult()
+
+
+
 
 def tx_done_cb():
     print('i2c tx done')
@@ -25,57 +26,88 @@ def tx_done_cb():
 def tx_buffer_empty_cb():
     print('i2c buffer empty')
 
+PendingDataIn = [bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8)]
+PendingDataNum = 0
 
-def timeset_cb(set_clk_cmd):
-    # just setting it to epoch 0 + seconds elapsed
-    # so... in the '70s
-    set_datetime(*time.gmtime(set_clk_cmd.time))
-    print(f'Time sync cmd: {set_clk_cmd}')
+PendingDataOut = []
+def i2c_data_in(numbytes:int, bts:bytearray):
+    global PendingDataIn 
+    global PendingDataNum
+    print(f"IN {bts}")
+    if len(bts):
+        for i in range(len(bts)):
+            PendingDataIn[PendingDataNum][i] = bts[i]
+        PendingDataNum += 1
+            
+        # PendingDataIn.append(bytearray(bts))
 
-def queue_response(coreSync:CoreSynchronizer, resp:rsp.Response):
-    coreSync.response_queue.put(resp)
 
+def queue_response(response:rsp.Response):
+    global PendingDataOut
+    PendingDataOut.append(response.bytes)
+    
+def get_and_flush_pending_in():
+    global PendingDataIn, PendingDataNum
+    # machine.disable_irq()
+    if not PendingDataNum:
+        # machine.enable_irq()
+        return []
+    
+    # race condition ?
+    data_rcvd = list(PendingDataIn)
+    PendingDataNum = 0
+    #machine.enable_irq()
+    return data_rcvd 
 
-ERes = ExpResult()
-def handle_command(coreSync:CoreSynchronizer, cmd:Command):
-    if isinstance(cmd, cmd_sch.RunImmediate):
-        print("Run experiment")
-        if ERes.running:
-            queue_response(coreSync, rsp.ResponseError(error_codes.Busy, 
-                                                       ERes.expid.to_bytes(2, 'little')))
-            return 
-        
-        ERes.expid = cmd.experiment_id
-        ERes.start()
-        # _thread.start_new_thread(ldr.run_experiment, (ERes,))
-        respmsg = b'EXP'
-        respmsg += cmd.experiment_id.to_bytes(2, 'little')
-        queue_response(coreSync, rsp.ResponseOKMessage(respmsg))
-        
-        ldr.run_experiment(ERes)
-        
-        
-        
-    elif isinstance(cmd, cmd_sys.Ping):
-        print("Ping")
-        # print(ERes)
-        queue_response(coreSync, rsp.ResponseOKMessage(cmd.payload))
-    elif isinstance(cmd, cmd_sys.Status):
-        queue_response(coreSync, rsp.ResponseStatus(ERes.running, ERes.expid, ERes.exception_type_id,
-                                                    ERes.run_duration, ERes.result))
-    elif isinstance(cmd, (cmd_sys.RebootNormal, cmd_sys.RebootSafe)):
-        print("Reboot")
-        queue_response(coreSync, rsp.ResponseOK())
-    elif isinstance(cmd, cmd_sys.SetSystemClock):
-        print("Set Clock")
-        queue_response(coreSync, rsp.ResponseOK())
-    else:
-        print("Unknown/unhandled command")
+def process_pending_data():
+    data_rcvd = get_and_flush_pending_in()
+    if not len(data_rcvd):
+        return 0
 
-def get_data_parser(coreSync:CoreSynchronizer):
-    in_data_parser = I2CInDataParser(coreSync)
-    in_data_parser.time_set_callback = timeset_cb
-    return in_data_parser
+    
+    for bts in data_rcvd:
+        typebyte = bts[0]
+        payload = bts[1:]
+        if typebyte == ord('E'):
+            print("Run experiment")
+            if len(payload):
+                exp_id = int.from_bytes(payload, 'little')
+            else:
+                exp_id = 0
+                
+            if ERes.running:
+                queue_response(rsp.ResponseError(error_codes.Busy, 
+                                                      ERes.expid.to_bytes(2, 'little')))
+                return 
+            
+            ERes.expid = exp_id
+            ERes.start()
+            respmsg = b'EXP'
+            respmsg += exp_id.to_bytes(2, 'little')
+            queue_response(rsp.ResponseOKMessage(respmsg))
+
+            _thread.start_new_thread(ldr.run_experiment, (ERes,))
+
+                
+        elif typebyte == ord('P'):
+            print("Ping")
+            queue_response(rsp.ResponseOKMessage(payload))
+        elif typebyte == ord('R'):
+            print("Reboot")
+            queue_response(rsp.ResponseOK())
+
+        elif typebyte == ord('S'):
+            print("Get Status")
+            queue_response(rsp.ResponseStatus(ERes.running, ERes.expid, ERes.exception_type_id,
+                                              ERes.run_duration, ERes.result))
+            
+        elif typebyte == ord('T'):
+            print("Sys Clock")
+            if len(payload) >= 4:
+                tnow = int.from_bytes(payload, 'little')
+                print(f"Set time to {tnow}")
+        
+
 
 def get_i2c_device():
     # create our slave device
@@ -85,14 +117,11 @@ def get_i2c_device():
     return i2c_dev
 
 def main_loop():
+    global PendingDataOut
     print("Entering main loop")
-    coreSync = CoreSynchronizer()
-    # create something that can grok what comes over the channel
-    # and can respond appropriately
-    in_data_parser = get_data_parser(coreSync)
     i2c_dev = get_i2c_device()
     # setup the callbacks
-    i2c_dev.callback_data_in = i2cInDataReceived
+    i2c_dev.callback_data_in = i2c_data_in
     i2c_dev.callback_tx_done = tx_done_cb 
     i2c_dev.callback_tx_buffer_empty = tx_buffer_empty_cb
     
@@ -103,7 +132,6 @@ def main_loop():
     else:
         print("  already init?")
     
-    loop_count = 0
     while True:
         try:
             
@@ -111,21 +139,16 @@ def main_loop():
             # master side, process that into commands
             # print(".", end='')
             time.sleep(0.02)
+            
             i2c_dev.poll_pending_data()
-            num_incoming = in_data_parser.process_pending_data()
-            loop_count += 1
-            if num_incoming > 0 or loop_count % 50 == 0:
-                print(f'\nIn: {num_incoming}')
-            while not coreSync.command_queue.empty():
-                cmd = coreSync.command_queue.get()
-                print(cmd)
-                handle_command(coreSync, cmd)
-                
+            num_incoming = process_pending_data()
+            if num_incoming:
+                print(f"Processed {num_incoming} messages")
             out_data = bytearray()
-            while not coreSync.response_queue.empty():
-                rsp = coreSync.response_queue.get()
-                print(rsp)
-                out_data += rsp.bytes
+            for outbytes in PendingDataOut:
+                out_data += outbytes
+            
+            PendingDataOut = []
             
             time.sleep(0.02)
             if len(out_data):
@@ -139,27 +162,6 @@ def main_loop():
         except Exception as e:
             print(f'ml ex: {e}')
             raise e
-    
-
-
-
-#def server_launch(coreSync:CoreSynchronizer):
-#    _thread.start_new_thread(main_loop, (coreSync, ))
-
-#def server_teardown():
-#    global ContinueHandling
-#    ContinueHandling = False
-
-
-
-
-def simple_run():
-    c = CoreSynchronizer()
-    main_loop(c)
-    
-
-if __name__ == '__main__':
-    simple_run()
 
 
     

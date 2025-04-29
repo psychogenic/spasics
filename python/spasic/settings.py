@@ -12,7 +12,7 @@ I2CSDA = 2
 I2CBaudRate = 100000
 
 #ThreadStackSize = 8192
-ThreadStackSize = 12000
+ThreadStackSize = 16000
 
 WatchdogEnable = False 
 

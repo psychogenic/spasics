@@ -17,6 +17,7 @@ gc.threshold(DefaultGCThreshold)
 
 
 if sts.ThreadStackSize:
+    print(f"Setting thread stack to {sts.ThreadStackSize}")
     _thread.stack_size(sts.ThreadStackSize)
 
 
@@ -43,7 +44,8 @@ if __name__ == '__main__':
     else:
         from spasic.util.coresync import CoreSynchronizer
         from i2c_server import *
-        coreSync = CoreSynchronizer()
         i2c_dev = get_i2c_device()
-        in_data_parser = get_data_parser(coreSync)
-        
+        i2c_dev.callback_data_in = i2c_data_in
+        i2c_dev.callback_tx_done = tx_done_cb 
+        i2c_dev.callback_tx_buffer_empty = tx_buffer_empty_cb
+        i2c_dev.begin()
