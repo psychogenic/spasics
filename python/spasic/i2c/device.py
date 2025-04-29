@@ -27,7 +27,6 @@ try:
 except:
     print("\n\n\nERROR: Not running uPython w/i2cslave support!\n\n")
 
-
 HavePendingDataIn = False
 class I2CDevice:
     '''
@@ -59,6 +58,8 @@ class I2CDevice:
         self.callback_tx_buffer_empty = None 
         # self._have_pending = False
         self._data_xfer_done = False
+        self._scratch_buf = bytearray(32)
+        self._scratch_size = 0
         
         
     def data_receivedOLD(self, numbytes:int, bts:bytearray):
@@ -68,26 +69,25 @@ class I2CDevice:
         
         print(f'Data in: {bts}')
     
-    def data_received(self, sz:int):
+    def data_received(self, _sz:int):
         global HavePendingDataIn
         HavePendingDataIn = True
-        # return 
-        # self._have_pending = True 
         
     def poll_pending_data(self):
         global HavePendingDataIn
         if not HavePendingDataIn: # self._have_pending:
             return
         
-        HavePendingDataIn = False
+        HavePendingDataIn = False # handled
         
-        # self._have_pending = False
         if self.callback_data_in is not None:
-            bts = bytearray(50)
             print("Getting pending")
-            sz = i2cslave.pending_data_into(bts)
-            print(f"GOT {bts}, doing cb")
-            self.callback_data_in(sz, bts[:sz])
+            # doing a whole dance here, for nothing...
+            # bts = bytearray(16)
+            self._scratch_size = int(i2cslave.pending_data_into(self._scratch_buf))
+            #self._scratch_buf = bytearray(bts)
+            print(f"GOT {self._scratch_buf[:self._scratch_size]}, doing cb")
+            self.callback_data_in(self._scratch_size, self._scratch_buf[:self._scratch_size])
             print("DONO")
             
         

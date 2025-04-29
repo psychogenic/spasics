@@ -6,7 +6,10 @@ Created on Apr 28, 2025
 '''
 import time
 
-def run_experiment(response):
+from spasic.experiment.experiment_result import ExpResult
+from spasic.experiment.experiment_parameters import ExperimentParameters
+
+def run_experiment(params:ExperimentParameters, response:ExpResult):
     print("This experiment will raise an exception")
     try:
         response.result = bytearray(5)

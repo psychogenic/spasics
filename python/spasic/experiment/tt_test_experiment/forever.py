@@ -1,19 +1,24 @@
 '''
-Created on Apr 28, 2025
-
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
+
+import time
 from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
 
-
 def run_experiment(params:ExperimentParameters, response:ExpResult):
-    print("Made it to loader, importing")
+    print("This experiment will run until you tell it to stop")
     try:
-        import spasic.experiment.tt_um_factory_test.experiment_1 as exp1
-        print("Import done, calling test")
-        exp1.test_loopback(params, response, num_iterations=5)
+        count = 0
+        response.result = bytearray(4)
+        while params.keep_running:
+            count += 1
+            if count > 0xffffff:
+                count = 0
+                
+            response.result = count.to_bytes(4, 'little')
+            time.sleep(0.25)
     except Exception as e:
         response.exception = e 
     else:
