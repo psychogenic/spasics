@@ -17,7 +17,7 @@ class SatelliteSimulator:
         data coming back.
     '''
     def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
-        self._i2c = machine.I2C(0, scl=25, sda=24, freq=100000)
+        self._i2c = machine.I2C(0, scl, sda, freq=baudrate)
         self._start_time = time.time()
         self._ping_count = 0
         
