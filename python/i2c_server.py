@@ -5,6 +5,7 @@
 
 
 import time
+import gc
 import micropython
 import machine
 import _thread
@@ -25,10 +26,10 @@ ExpArgs = ExperimentParameters(DemoBoard.get())
 
 
 def tx_done_cb():
-    print('i2c tx done')
+    pass # print('i2c tx done')
     
 def tx_buffer_empty_cb():
-    print('i2c buffer empty')
+    pass # print('i2c buffer empty')
 
 
 PendingDataIn = [bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8)]
@@ -111,13 +112,17 @@ def process_pending_data():
             ERes.start()
             ExpArgs.start(exp_argument_bytes)
             ExperimentRun = True
-            runner = ExperimentsAvailable[exp_id]
-            
-            _thread.start_new_thread(runner, (ExpArgs, ERes,))
             
             respmsg = b'EXP'
             respmsg += exp_id.to_bytes(2, 'little')
             queue_response(rsp.ResponseOKMessage(respmsg))
+            
+            
+            runner = ExperimentsAvailable[exp_id]
+            # oldgcthresh = gc.threshold()
+            # gc.threshold(4096)
+            _thread.start_new_thread(runner, (ExpArgs, ERes,))
+            # gc.threshold(oldgcthresh)
         elif typebyte == ord('P'):
             print("Ping")
             queue_response(rsp.ResponseOKMessage(payload))
