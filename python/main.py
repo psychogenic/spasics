@@ -5,7 +5,7 @@
 
 import gc
 DefaultGCThreshold = gc.threshold()
-gc.threshold(8000)
+gc.threshold(4096)
 import micropython 
 import _thread
 import time 

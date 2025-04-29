@@ -5,6 +5,7 @@
 
 
 import time
+import micropython
 import machine
 import _thread
 import spasic.cnc.response.response as rsp
@@ -159,6 +160,7 @@ def main_loop():
     else:
         print("  init?")
     
+    micropython.mem_info()
     while True:
         try:
             
