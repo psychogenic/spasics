@@ -2,7 +2,7 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
-
+import time
 from machine import Timer, reset, WDT
 
 import spasic.settings as sts
@@ -40,3 +40,25 @@ class SystemWatchdog:
             self.wdt = WDT(timeout=SystemWatchdogTimerTimeoutMs)  
         else:
             print("WATCHDOG DISABLED IN CONFIG!")
+            
+
+BigDog = None 
+def enable_watchdog():
+    global BigDog 
+    if BigDog is not None:
+        raise RuntimeError('Wdog already started!')
+    
+    BigDog = SystemWatchdog()
+    BigDog.enable()
+    
+def force_reboot():
+    global BigDog 
+    if BigDog is None:
+        print('No wdog to force reboot!')
+        time.sleep(0.5)
+        reset()
+        return False
+        
+    BigDog.stop_feeding()
+    return True
+    

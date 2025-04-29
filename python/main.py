@@ -11,7 +11,7 @@ import _thread
 import time 
 import i2c_server 
 import spasic.settings as sts
-from spasic.util.watchdog import SystemWatchdog
+from spasic.util.watchdog import SystemWatchdog, enable_watchdog
 from ttboard.demoboard import DemoBoard
 
 tt = DemoBoard.get()
@@ -22,12 +22,6 @@ if sts.ThreadStackSize:
     print(f"Setting thread stack to {sts.ThreadStackSize}")
     _thread.stack_size(sts.ThreadStackSize)
 
-
-BigDog = None 
-def enable_watchdog():
-    global BigDog 
-    BigDog = SystemWatchdog()
-    BigDog.enable()
 
 
 

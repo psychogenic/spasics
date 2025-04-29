@@ -16,6 +16,7 @@ from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
 from spasic.experiment.experiment_list import ExperimentsAvailable
 from ttboard.demoboard import DemoBoard
+import spasic.util.watchdog
 
 ERes = ExpResult()
 ExpArgs = ExperimentParameters(DemoBoard.get())
@@ -122,6 +123,7 @@ def process_pending_data():
             queue_response(rsp.ResponseOKMessage(payload))
         elif typebyte == ord('R'):
             print("Reboot")
+            spasic.util.watchdog.force_reboot()
             queue_response(rsp.ResponseOK())
 
         elif typebyte == ord('S'):
