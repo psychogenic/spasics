@@ -12,10 +12,12 @@ import spasic.settings as sts
 from spasic.i2c.device import I2CDevice
 import spasic.error_codes as error_codes
 from spasic.experiment.experiment_result import ExpResult
+from spasic.experiment.experiment_parameters import ExperimentParameters
 from spasic.experiment.experiment_list import ExperimentsAvailable
-
+from ttboard.demoboard import DemoBoard
 
 ERes = ExpResult()
+ExpArgs = ExperimentParameters(DemoBoard.get())
 
 
 
@@ -26,6 +28,7 @@ def tx_done_cb():
 def tx_buffer_empty_cb():
     print('i2c buffer empty')
 
+
 PendingDataIn = [bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8)]
 PendingDataNum = 0
 
@@ -35,7 +38,7 @@ def i2c_data_in(numbytes:int, bts:bytearray):
     global PendingDataNum
     print(f"IN {bts}")
     if len(bts):
-        for i in range(len(bts)):
+        for i in range(numbytes):
             PendingDataIn[PendingDataNum][i] = bts[i]
         PendingDataNum += 1
             
@@ -68,7 +71,17 @@ def process_pending_data():
     for bts in data_rcvd:
         typebyte = bts[0]
         payload = bts[1:]
-        if typebyte == ord('E'):
+        if typebyte == ord('A'):
+            print("Abort any experiment")
+            ExpArgs.terminate()
+            if ERes.running:
+                respmsg = b'TRM'
+                respmsg += ERes.expid.to_bytes(2, 'little')
+                queue_response(rsp.ResponseOKMessage(respmsg))
+            else:
+                queue_response(rsp.ResponseOK())
+                
+        elif typebyte == ord('E'):
             print("Run experiment")
                 
             if ERes.running:
@@ -89,15 +102,14 @@ def process_pending_data():
             
             ERes.expid = exp_id
             ERes.start()
+            ExpArgs.start()
+            runner = ExperimentsAvailable[exp_id]
+            
+            _thread.start_new_thread(runner, (ExpArgs, ERes,))
+            
             respmsg = b'EXP'
             respmsg += exp_id.to_bytes(2, 'little')
             queue_response(rsp.ResponseOKMessage(respmsg))
-
-
-            runner = ExperimentsAvailable[exp_id]
-            _thread.start_new_thread(runner, (ERes,))
-
-                
         elif typebyte == ord('P'):
             print("Ping")
             queue_response(rsp.ResponseOKMessage(payload))
@@ -147,7 +159,7 @@ def main_loop():
             # may have queued data received from 
             # master side, process that into commands
             # print(".", end='')
-            time.sleep(0.02)
+            # time.sleep(0.02)
             
             i2c_dev.poll_pending_data()
             num_incoming = process_pending_data()
@@ -159,7 +171,7 @@ def main_loop():
             
             PendingDataOut = []
             
-            time.sleep(0.02)
+            # time.sleep(0.02)
             if len(out_data):
                 print(f"Have data to send: {out_data}")
                 i2c_dev.queue_outdata(out_data)
