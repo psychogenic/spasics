@@ -32,7 +32,7 @@ def tx_buffer_empty_cb():
     pass # print('i2c buffer empty')
 
 
-PendingDataIn = [bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearray(8)]
+PendingDataIn = [bytearray(9), bytearray(9), bytearray(9)]
 PendingDataNum = 0
 
 PendingDataOut = []
@@ -40,9 +40,11 @@ ExperimentRun = False
 def i2c_data_in(numbytes:int, bts:bytearray):
     global PendingDataIn 
     global PendingDataNum
-    if len(bts):
+    btslen = int(numbytes)
+    if len(bts) and btslen:
+        PendingDataIn[PendingDataNum][0] = btslen
         for i in range(numbytes):
-            PendingDataIn[PendingDataNum][i] = bts[i]
+            PendingDataIn[PendingDataNum][i+1] = bts[i]
         PendingDataNum += 1
             
         # PendingDataIn.append(bytearray(bts))
@@ -60,8 +62,15 @@ def get_and_flush_pending_in():
         return []
     
     # race condition ?
-    data_rcvd = list(PendingDataIn)
+    data_rcvd_with_len = list(PendingDataIn)
+    num_msg = int(PendingDataNum)
     PendingDataNum = 0
+    
+    data_rcvd = []
+    for i in range(num_msg):
+        bts = data_rcvd_with_len[i]
+        print(f'{bts} {bts[0]}')
+        data_rcvd.append(bts[1:bts[0]+1])
     #machine.enable_irq()
     return data_rcvd 
 

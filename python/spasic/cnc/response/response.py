@@ -11,7 +11,7 @@ class Response:
         if isinstance(bts, int):
             try:
                 v = bts % 256
-                self.bytes += v.to_bytes()
+                self.bytes += v.to_bytes(1, 'little')
             except:
                 print(f"Prob appnd {bts}")
         elif isinstance(bts, list):
@@ -43,7 +43,7 @@ class ResponseOK(Response):
 class ResponseOKMessage(Response):
     '''
         OKMessage
-        0x01 0x01 b'OK' LEN MSGBYTES
+        0x01 0x02 b'OK' LEN MSGBYTES
     '''
     def __init__(self, msg:bytearray):
         super().__init__()

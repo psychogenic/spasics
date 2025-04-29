@@ -17,7 +17,7 @@ class SatelliteSimulator:
         data coming back.
     '''
     def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
-        self._i2c = machine.I2C(0, scl, sda, freq=baudrate)
+        self._i2c = machine.I2C(0, scl=scl, sda=sda, freq=baudrate)
         self._start_time = time.time()
         self._ping_count = 0
         
@@ -62,7 +62,7 @@ class SatelliteSimulator:
                         # 0x01 0x01 : OK
                         return 'OK'
                     if blk[1] == 0x02:
-                        # 0x01 0x2 LEN MSG[LEN]: OK WITH PAYLOAD
+                        # 0x01 0x02 b'OK' LEN MSGBYTES[LEN]: OK WITH PAYLOAD
                         msglen = blk[4]
                         msg = blk[5:(5+msglen)]
                         rcvd.append( f'OK: {msg}' )
@@ -146,7 +146,7 @@ class SatelliteSimulator:
         # 'P' and payload byte to get back in pong
         self._ping_count += 1
         print(f"Sending ping {self._ping_count}")
-        bts = bytearray([ord('P'), self._ping_count % 256])
+        bts = bytearray([ord('P'), self._ping_count % 256, ord('P'), ord('N'), ord('G')])
         self.send(bts)
         time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')
