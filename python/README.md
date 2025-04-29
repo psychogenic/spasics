@@ -88,7 +88,8 @@ Then you'll have a `firmware.uf2` in build-somethingsomething that you can insta
 
 Finally, copy over the [spasics API modules](https://github.com/psychogenic/spasics/tree/main/python/spasic) and the [shuttles](https://github.com/psychogenic/spasics/tree/main/python/shuttles) directory and [config.ini](https://github.com/psychogenic/spasics/blob/main/python/config.ini) [i2c_server.py](https://github.com/psychogenic/spasics/blob/main/python/i2c_server.py) and [main.py](https://github.com/psychogenic/spasics/blob/main/python/main.py), from here, into the root of the micropython filesystem.
 
-For the spasics board, SDA is GPIO2 and SCL is GPIO3. 
+For the spasics board, SDA is GPIO2 and SCL is GPIO3. On TT06 demoboards, GPIO2 is the mux control reset (cRST on the header at the top) and GPIO3 is mux control increment (cINC on same header).  So, if you run this on a demoboard, you'll either want to remove the ASIC or remap the I2C pins to something better (say some bidirs, say uio1 and uio2 bidirs... main thing is that they use I2C1 on the RP2 unless you want to mess in the C module).
+
 
   
   
