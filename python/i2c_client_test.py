@@ -48,7 +48,15 @@ class SatelliteSimulator:
                 else:
                     errmsg = ''
                 return f'ERROR [{errcode}] {errmsg}'
+            
+        if blk[0] == 0x07:
+            running = True if blk[1] else False
+            expid = blk[2]
+            runtime = int.from_bytes(blk[3:(3+4)], 'little')
+            res = blk[7:]
+            return f'Status running:{running} exp {expid} {runtime}s: {res}'
         
+            
         if blk[0] == 0x09:
             # 0x09 EXPERIMENTID LEN RESULTBYTES (number of bytes depends on experiment)
             expid = blk[1]
@@ -68,6 +76,12 @@ class SatelliteSimulator:
         bts += t_now.to_bytes(4, 'little')
         print(f"Sending time sync {t_now}")
         self.send(bts)
+    def status(self):
+        print("Requesting status")
+        bts = bytearray([ord('S')])
+        self.send(bts)
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
         
     def ping(self):
         self._ping_count += 1

@@ -16,7 +16,7 @@ import spasic.cnc.command.schedule as cmd_sch
 import spasic.cnc.command.system as cmd_sys
 import spasic.cnc.response.response as rsp
 import spasic.error_codes as error_codes
-
+from spasic.experiment.experiment_result import ExpResult
 import spasic.experiment.tt_um_factory_test.loader as ldr
 
 _thread.stack_size(8192)
@@ -37,58 +37,6 @@ def timeset_cb(set_clk_cmd):
 def queue_response(coreSync:CoreSynchronizer, resp:rsp.Response):
     coreSync.response_queue.put(resp)
 
-class ExpResult:
-    def __init__(self):
-        self.result = bytearray()
-        self.expid = 0
-        self._completed = False 
-        self.start_time = 0 
-        self.end_time = 0
-        self.success = False
-        self._exception = None
-        self._running = False
-        
-    def start(self):
-        self.exception = None
-        self.success = True
-        self._completed = False
-        self.start_time = time.time()
-        self.end_time = 0
-        self._running = True
-        
-    @property 
-    def exception(self):
-        return self._exception
-    
-    @exception.setter 
-    def exception(self, set_to):
-        self._exception = set_to 
-        self._running = False
-    
-    @property 
-    def running(self):
-        return self._running
-        
-    @property 
-    def run_duration(self):
-        return self.end_time - self.start_time
-        
-    @property 
-    def completed(self):
-        return self._completed
-    
-    @completed.setter 
-    def completed(self, set_to:bool):
-        self._completed = set_to
-        if set_to:
-            self.end_time = time.time()
-            self._running = False
-            
-    
-    def __str__(self):
-        return f'Exp {self.expid} [{self._completed} {self.run_duration}s]: {self.result}>'
-            
-        
 
 ERes = ExpResult()
 def handle_command(coreSync:CoreSynchronizer, cmd:Command):
@@ -114,11 +62,11 @@ def handle_command(coreSync:CoreSynchronizer, cmd:Command):
         
     elif isinstance(cmd, cmd_sys.Ping):
         print("Ping")
-        print(ERes)
+        # print(ERes)
         queue_response(coreSync, rsp.ResponseOKMessage(cmd.payload))
     elif isinstance(cmd, cmd_sys.Status):
-        print("Status")
-        queue_response(coreSync, rsp.ResponseOK())
+        queue_response(coreSync, rsp.ResponseStatus(ERes.running, ERes.expid,
+                                                    ERes.run_duration, ERes.result))
     elif isinstance(cmd, (cmd_sys.RebootNormal, cmd_sys.RebootSafe)):
         print("Reboot")
         queue_response(coreSync, rsp.ResponseOK())

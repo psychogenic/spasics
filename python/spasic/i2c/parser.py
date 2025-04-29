@@ -32,6 +32,7 @@ class I2CInDataParser:
             ord('E'): self.handle_run_experiment,
             ord('P'): self.handle_ping,
             ord('R'): self.handle_reboot,
+            ord('S'): self.handle_get_status,
             ord('T'): self.handle_set_sysclock,
             
             }
@@ -103,26 +104,9 @@ class I2CInDataParser:
         return num_msgs
         
     
-    def data_receivedOLD(self, numbytes:int, bts:bytearray):
-        print(f"PARSER DATA IN: {bts}")
-        if not numbytes or not len(bts):
-            return 
         
-        message_map = {
-            ord('E'): self.handle_run_experiment,
-            ord('P'): self.handle_ping,
-            ord('R'): self.handle_reboot,
-            ord('T'): self.handle_set_sysclock,
-            
-            }
-        
-        if bts is not None:
-            if bts[0] in message_map:
-                f = message_map[bts[0]]
-                f(bts[1:])
-            else:
-                self.core_sync.response_queue.put(rsp.ResponseError(err_codes.UnknownCommand, bts))
-            
+    def handle_get_status(self, payload:bytearray):
+        self.core_sync.command_queue.put(cmd_sys.Status())
         
     def handle_set_sysclock(self, payload:bytearray):
         set_clk_cmd = cmd_sys.SetSystemClock(payload)
