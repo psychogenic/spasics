@@ -7,7 +7,7 @@ class ExperimentParameters:
     def __init__(self, tt_db:DemoBoard):
         self.tt = tt_db 
         self._keep_running = False 
-        self.argument_bytes = bytearray()
+        self.argument_bytes = bytearray(10)
         
     @property 
     def keep_running(self):
@@ -16,7 +16,7 @@ class ExperimentParameters:
     def start(self, args:bytearray=None):
         self._keep_running = True 
         if args is None:
-            self.argument_bytes = bytearray()
+            self.argument_bytes = bytearray(10)
         else:
             self.argument_bytes = args
     def terminate(self):
