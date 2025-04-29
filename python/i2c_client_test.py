@@ -7,7 +7,7 @@ import machine
 import time 
 
 SlaveAddress = 0x51 
-ResponseDelaySeconds = 0.1
+ResponseDelaySeconds = 0.3
 
 class SatelliteSimulator:
     
@@ -94,7 +94,12 @@ class SatelliteSimulator:
         
         
         
-        
+def pingit():
+    while True:
+        sim.ping()
+        time.sleep(0.3)
+
+
         
         
 if __name__ == '__main__':

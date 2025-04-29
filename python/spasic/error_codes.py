@@ -5,3 +5,4 @@
 
 UnknownCommand = 0x01
 UnknownExperiment = 0x02
+Busy = 0x03

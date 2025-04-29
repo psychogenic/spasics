@@ -1,7 +1,7 @@
 import time
-from spasic.experiment_runner.experiment import ExperimentResponse
+# from spasic.experiment_runner.experiment import ExperimentResponse
 
-def test_loopback(response:ExperimentResponse, num_iterations:int=10):
+def test_loopback(response, num_iterations:int=10):
     print("in test_loopback")
     from ttboard.demoboard import DemoBoard
     tt = DemoBoard.get()

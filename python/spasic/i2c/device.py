@@ -16,6 +16,8 @@
       and whenever the tx buffer goes empty
 
 '''
+
+import time
 SlaveAddressDefault = 0x51
 DefaultBaudRate = 100000
 
@@ -24,7 +26,9 @@ try:
     import i2cslave
 except:
     print("\n\n\nERROR: Not running uPython w/i2cslave support!\n\n")
-    
+
+
+HavePendingDataIn = False
 class I2CDevice:
     '''
         Construct the device,
@@ -53,15 +57,39 @@ class I2CDevice:
         self.callback_data_in = None
         self.callback_tx_done = None 
         self.callback_tx_buffer_empty = None 
+        # self._have_pending = False
+        self._data_xfer_done = False
         
         
-    def data_received(self, numbytes:int, bts:bytearray):
+    def data_receivedOLD(self, numbytes:int, bts:bytearray):
         if self.callback_data_in is not None:
             self.callback_data_in(numbytes, bts)
             return 
         
         print(f'Data in: {bts}')
+    
+    def data_received(self, sz:int):
+        global HavePendingDataIn
+        HavePendingDataIn = True
+        # return 
+        # self._have_pending = True 
         
+    def poll_pending_data(self):
+        global HavePendingDataIn
+        if not HavePendingDataIn: # self._have_pending:
+            return
+        
+        HavePendingDataIn = False
+        
+        # self._have_pending = False
+        if self.callback_data_in is not None:
+            bts = bytearray(50)
+            print("Getting pending")
+            sz = i2cslave.pending_data_into(bts)
+            print(f"GOT {bts}, doing cb")
+            self.callback_data_in(sz, bts[:sz])
+            print("DONO")
+            
         
     def _write_outbytes(self):
         if self._slavebuf_filled or not len(self._dataqueue):
@@ -86,13 +114,22 @@ class I2CDevice:
         self._write_outbytes()
         
     
-    def _data_tx_done_cb(self):
+    def _data_tx_done_cb(self, _unused=None):
+        self._data_xfer_done = True 
+        
+    def push_outgoing_data(self):
+        if not self._data_xfer_done:
+            return 
+        
+        self._data_xfer_done = False
         self._slavebuf_filled = False
         if self.callback_tx_done is not None:
+            print(f"tx done cb: {self.callback_tx_done}")
             self.callback_tx_done()
             
         if not self._write_outbytes():
             if self.callback_tx_buffer_empty is not None:
+                print(f"tx empty cb {self.callback_tx_buffer_empty}")
                 self.callback_tx_buffer_empty()
                 
         

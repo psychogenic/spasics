@@ -18,12 +18,17 @@ class Queue:
     def __init__(self, maxsize:int=0):
         self._max_size = maxsize 
         self._q = []
-        self.lock = _thread.allocate_lock()
+        self._lock = _thread.allocate_lock()
+    
+    def lock(self):
+        pass # self._lock.acquire()
+    def release(self):
+        pass # self._lock.release()
         
     def qsize(self):
-        self.lock.acquire()
+        self.lock()
         l = len(self._q)
-        self.lock.release()
+        self.release()
         
         return l 
     
@@ -48,9 +53,9 @@ class Queue:
                 return False
             
             
-        self.lock.acquire()
+        self.lock()
         self._q.append(item)
-        self.lock.release()
+        self.release()
         
     def get(self, block=True):
         
@@ -63,13 +68,13 @@ class Queue:
                 return None
             
         
-        self.lock.acquire()
+        self.lock()
         ritem = self._q[0]
         if len(self._q) < 2:
             self._q = []
         else:
             self._q = self._q[1:]
-        self.lock.release()
+        self.release()
         return ritem
         
         

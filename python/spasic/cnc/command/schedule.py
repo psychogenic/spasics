@@ -4,8 +4,6 @@
 '''
 
 from spasic.cnc.command.command import Command
-from spasic.experiment_runner.experiment import Experiment
-
 
 class ScheduleCommand(Command):
     pass 

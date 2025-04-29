@@ -12,6 +12,10 @@ class Ping(SysCommand):
     def __init__(self, bts:bytearray):
         super().__init__()
         self.payload = bts
+        
+class Status(SysCommand):
+    def __init__(self):
+        pass
 
 class RebootSafe(SysCommand):
     pass
