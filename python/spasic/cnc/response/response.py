@@ -81,6 +81,8 @@ class ResponseExperiment(Response):
         self.append(b'\x09')
         self.append(exp_id)
         if result is not None and len(result):
+            if len(result) > 13:
+                result = result[:13]
             self.append(len(result))
             self.append(result)
         else:

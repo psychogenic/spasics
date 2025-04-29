@@ -35,6 +35,8 @@ class ExpResult:
     
     @property 
     def running(self):
+        if self._exception is not None:
+            return False
         return self._running
         
     @property 

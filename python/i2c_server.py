@@ -33,10 +33,10 @@ PendingDataIn = [bytearray(8), bytearray(8), bytearray(8), bytearray(8), bytearr
 PendingDataNum = 0
 
 PendingDataOut = []
+ExperimentRun = False
 def i2c_data_in(numbytes:int, bts:bytearray):
     global PendingDataIn 
     global PendingDataNum
-    print(f"IN {bts}")
     if len(bts):
         for i in range(numbytes):
             PendingDataIn[PendingDataNum][i] = bts[i]
@@ -63,6 +63,7 @@ def get_and_flush_pending_in():
     return data_rcvd 
 
 def process_pending_data():
+    global ExperimentRun
     data_rcvd = get_and_flush_pending_in()
     if not len(data_rcvd):
         return 0
@@ -72,7 +73,7 @@ def process_pending_data():
         typebyte = bts[0]
         payload = bts[1:]
         if typebyte == ord('A'):
-            print("Abort any experiment")
+            print("Abort")
             ExpArgs.terminate()
             if ERes.running:
                 respmsg = b'TRM'
@@ -82,7 +83,7 @@ def process_pending_data():
                 queue_response(rsp.ResponseOK())
                 
         elif typebyte == ord('E'):
-            print("Run experiment")
+            print("Run")
                 
             if ERes.running:
                 queue_response(rsp.ResponseError(error_codes.Busy, 
@@ -107,6 +108,7 @@ def process_pending_data():
             ERes.expid = exp_id
             ERes.start()
             ExpArgs.start(exp_argument_bytes)
+            ExperimentRun = True
             runner = ExperimentsAvailable[exp_id]
             
             _thread.start_new_thread(runner, (ExpArgs, ERes,))
@@ -122,15 +124,15 @@ def process_pending_data():
             queue_response(rsp.ResponseOK())
 
         elif typebyte == ord('S'):
-            print("Get Status")
+            print("Status")
             queue_response(rsp.ResponseStatus(ERes.running, ERes.expid, ERes.exception_type_id,
                                               ERes.run_duration, ERes.result))
             
         elif typebyte == ord('T'):
-            print("Sys Clock")
+            print("Clock")
             if len(payload) >= 4:
                 tnow = int.from_bytes(payload, 'little')
-                print(f"Set time to {tnow}")
+                print(f"time {tnow}")
         
 
 
@@ -143,7 +145,7 @@ def get_i2c_device():
 
 def main_loop():
     global PendingDataOut
-    print("Entering main loop")
+    global ExperimentRun
     i2c_dev = get_i2c_device()
     # setup the callbacks
     i2c_dev.callback_data_in = i2c_data_in
@@ -151,11 +153,11 @@ def main_loop():
     i2c_dev.callback_tx_buffer_empty = tx_buffer_empty_cb
     
     # init the i2c device and start listening
-    print("Starting i2c device:")
+    print("i2c:")
     if i2c_dev.begin():
         print("  success")
     else:
-        print("  already init?")
+        print("  init?")
     
     while True:
         try:
@@ -166,9 +168,18 @@ def main_loop():
             # time.sleep(0.02)
             
             i2c_dev.poll_pending_data()
+            
+            if ExperimentRun:
+                if not ERes.running:
+                    # experiment is done!
+                    ExperimentRun = False 
+                    print("exp done, queue result")
+                    queue_response(rsp.ResponseExperiment(ERes.expid, ERes.result))
+            
+            
             num_incoming = process_pending_data()
             if num_incoming:
-                print(f"Processed {num_incoming} messages")
+                print(f"{num_incoming} msgs")
             out_data = bytearray()
             for outbytes in PendingDataOut:
                 out_data += outbytes
@@ -177,7 +188,7 @@ def main_loop():
             
             # time.sleep(0.02)
             if len(out_data):
-                print(f"Have data to send: {out_data}")
+                print(f"data out: {out_data}")
                 i2c_dev.queue_outdata(out_data)
                 
             i2c_dev.push_outgoing_data()
