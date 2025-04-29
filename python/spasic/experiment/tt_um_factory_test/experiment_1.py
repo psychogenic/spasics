@@ -3,6 +3,10 @@ import time
 
 def test_loopback(response, num_iterations:int=10):
     print("in test_loopback")
+    
+    response.result = bytearray(5)
+    
+    
     from ttboard.demoboard import DemoBoard
     tt = DemoBoard.get()
     print("got tt singleton")
@@ -18,7 +22,6 @@ def test_loopback(response, num_iterations:int=10):
     time.sleep_ms(1)
     tt.rst_n.value = 1
     num_failures = 0
-    response.result = bytearray(5)
     response.result[0] = num_iterations
     for _it in range(num_iterations):
         for i in range(256):

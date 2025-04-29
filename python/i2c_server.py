@@ -12,7 +12,7 @@ import spasic.settings as sts
 from spasic.i2c.device import I2CDevice
 import spasic.error_codes as error_codes
 from spasic.experiment.experiment_result import ExpResult
-import spasic.experiment.tt_um_factory_test.loader as ldr
+from spasic.experiment.experiment_list import ExperimentsAvailable
 
 
 ERes = ExpResult()
@@ -70,15 +70,22 @@ def process_pending_data():
         payload = bts[1:]
         if typebyte == ord('E'):
             print("Run experiment")
-            if len(payload):
-                exp_id = int.from_bytes(payload, 'little')
-            else:
-                exp_id = 0
                 
             if ERes.running:
                 queue_response(rsp.ResponseError(error_codes.Busy, 
                                                       ERes.expid.to_bytes(2, 'little')))
                 return 
+            
+            
+            if len(payload):
+                exp_id = int.from_bytes(payload, 'little')
+            else:
+                exp_id = 0
+                
+            if exp_id not in ExperimentsAvailable:
+                queue_response(rsp.ResponseError(error_codes.UnknownExperiment, bytearray([exp_id])))
+                return 
+            
             
             ERes.expid = exp_id
             ERes.start()
@@ -86,7 +93,9 @@ def process_pending_data():
             respmsg += exp_id.to_bytes(2, 'little')
             queue_response(rsp.ResponseOKMessage(respmsg))
 
-            _thread.start_new_thread(ldr.run_experiment, (ERes,))
+
+            runner = ExperimentsAvailable[exp_id]
+            _thread.start_new_thread(runner, (ERes,))
 
                 
         elif typebyte == ord('P'):

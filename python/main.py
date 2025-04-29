@@ -16,6 +16,10 @@ from spasic.util.watchdog import SystemWatchdog
 gc.threshold(DefaultGCThreshold)
 
 
+if sts.ThreadStackSize:
+    print(f"Setting thread stack to {sts.ThreadStackSize}")
+    _thread.stack_size(sts.ThreadStackSize)
+
 
 BigDog = None 
 def enable_watchdog():
@@ -23,10 +27,6 @@ def enable_watchdog():
     BigDog = SystemWatchdog()
     BigDog.enable()
 
-
-if sts.ThreadStackSize:
-    print(f"Setting thread stack to {sts.ThreadStackSize}")
-    _thread.stack_size(sts.ThreadStackSize)
 
 
 if sts.WatchdogEnable:
