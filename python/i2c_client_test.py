@@ -7,7 +7,7 @@ import machine
 import time 
 
 SlaveAddress = 0x51 
-ResponseDelaySeconds = 0.3
+ResponseDelaySeconds = 0.5
 
 class SatelliteSimulator:
     
@@ -24,56 +24,65 @@ class SatelliteSimulator:
     
     def read_pending(self):
         empty = bytearray([0xff]*16)
-        blk = self.read_block()
-        if blk == empty:
-            return 'EMPTY'
         
-        # print(f"Got data block {blk}")
-        if blk[0] == 0x01:
-            # system message
-            if blk[1]:
-                # ok message
-                if blk[1] == 0x01:
-                    return 'OK'
-                if blk[1] == 0x02:
-                    msglen = blk[4]
-                    msg = blk[5:(5+msglen)]
-                    return f'OK: {msg}'
-            else:
-                # error message
-                errcode = blk[2]
-                errlen = blk[3]
-                if errlen:
-                    errmsg = blk[3:(3+errlen)]
+        rcvd = []
+        while True:
+            # read til empty
+            blk = self.read_block()
+            if blk == empty:
+                if not len(rcvd):
+                    # first is empty
+                    return 'EMPTY'
+                if len(rcvd) == 1:
+                    return rcvd[0] 
+                return rcvd
+            
+            # print(f"Got data block {blk}")
+            elif blk[0] == 0x01:
+                # system message
+                if blk[1]:
+                    # ok message
+                    if blk[1] == 0x01:
+                        return 'OK'
+                    if blk[1] == 0x02:
+                        msglen = blk[4]
+                        msg = blk[5:(5+msglen)]
+                        rcvd.append( f'OK: {msg}' )
                 else:
-                    errmsg = ''
-                return f'ERROR [{errcode}] {errmsg}'
+                    # error message
+                    errcode = blk[2]
+                    errlen = blk[3]
+                    if errlen:
+                        errmsg = blk[3:(3+errlen)]
+                    else:
+                        errmsg = ''
+                    rcvd.append( f'ERROR [{errcode}] {errmsg}' )
             
-        if blk[0] == 0x07:
-            running = True if blk[1] else False
-            expid = blk[2]
-            exception_id = blk[3]
-            runtime = int.from_bytes(blk[4:(4+4)], 'little')
-            res = blk[8:]
-            if exception_id:
-                exstr = f'Exception: {exception_id}'
-            else:
-                exstr = 'OK'
-            return f'Status running:{running} exp {expid} {exstr} {runtime}s: {res}'
-        
+            elif blk[0] == 0x07:
+                running = True if blk[1] else False
+                expid = blk[2]
+                exception_id = blk[3]
+                runtime = int.from_bytes(blk[4:(4+4)], 'little')
+                res = blk[8:]
+                if exception_id:
+                    exstr = f'Exception: {exception_id}'
+                else:
+                    exstr = 'OK'
+                rcvd.append( f'Status running:{running} exp {expid} {exstr} {runtime}s: {res}')
             
-        if blk[0] == 0x09:
-            # 0x09 EXPERIMENTID LEN RESULTBYTES (number of bytes depends on experiment)
-            expid = blk[1]
-            reslen = blk[2]
-            if reslen:
-                resmsg = blk[2:(2+reslen)]
-            else:
-                resmsg = ''
                 
-            return f'EXPERIMENT {expid}: {resmsg}'
-        
-        print(f"Unknown response: {blk}")
+            elif blk[0] == 0x09:
+                # 0x09 EXPERIMENTID LEN RESULTBYTES (number of bytes depends on experiment)
+                expid = blk[1]
+                reslen = blk[2]
+                if reslen:
+                    resmsg = blk[2:(2+reslen)]
+                else:
+                    resmsg = ''
+                    
+                rcvd.append( f'EXPERIMENT {expid}: {resmsg}' )
+            else:
+                rcvd.append(f"Unknown response: {blk}")
         
     def time_sync(self):
         t_now = time.time() - self._start_time
