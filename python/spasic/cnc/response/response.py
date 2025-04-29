@@ -91,7 +91,7 @@ class ResponseStatus(Response):
         Status 
         0x07 [RUNNING] [EXPID] [RUNTIME 4bytes] [RESULT up to 8 bytes]
     '''
-    def __init__(self, exp_running:bool, exp_id:int=0, run_time_s:int=0, result:bytearray=None):
+    def __init__(self, exp_running:bool, exp_id:int=0, exception_id:int=0, run_time_s:int=0, result:bytearray=None):
         super().__init__()
         if exp_running:
             self.append(b'\x07\x01')
@@ -99,6 +99,7 @@ class ResponseStatus(Response):
             self.append(b'\x07\x00')
             
         self.append(exp_id.to_bytes(1, 'little'))
+        self.append(exception_id.to_bytes(1, 'little'))
         self.append(run_time_s.to_bytes(4, 'little'))
         if result is not None and len(result):
             if len(result) > 8:

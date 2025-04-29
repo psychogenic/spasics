@@ -11,11 +11,21 @@ import micropython
 import time 
 import i2c_server 
 import spasic.settings as sts
+from spasic.util.watchdog import SystemWatchdog
 
 gc.threshold(DefaultGCThreshold)
 
 
+BigDog = None 
+def enable_watchdog():
+    global BigDog 
+    BigDog = SystemWatchdog()
+    BigDog.enable()
+
 if __name__ == '__main__':
+    
+    enable_watchdog()
+    
     if sts.StartupDelaySeconds:
         micropython.mem_info()
         print(f'Waiting {sts.StartupDelaySeconds}s to start...')

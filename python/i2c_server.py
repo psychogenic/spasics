@@ -19,7 +19,8 @@ import spasic.error_codes as error_codes
 from spasic.experiment.experiment_result import ExpResult
 import spasic.experiment.tt_um_factory_test.loader as ldr
 
-_thread.stack_size(8192)
+if sts.ThreadStackSize:
+    _thread.stack_size(sts.ThreadStackSize)
 
 def tx_done_cb():
     print('i2c tx done')
@@ -42,14 +43,10 @@ ERes = ExpResult()
 def handle_command(coreSync:CoreSynchronizer, cmd:Command):
     if isinstance(cmd, cmd_sch.RunImmediate):
         print("Run experiment")
-        
         if ERes.running:
             queue_response(coreSync, rsp.ResponseError(error_codes.Busy, 
                                                        ERes.expid.to_bytes(2, 'little')))
             return 
-        
-        
-        
         
         ERes.expid = cmd.experiment_id
         ERes.start()
@@ -65,7 +62,7 @@ def handle_command(coreSync:CoreSynchronizer, cmd:Command):
         # print(ERes)
         queue_response(coreSync, rsp.ResponseOKMessage(cmd.payload))
     elif isinstance(cmd, cmd_sys.Status):
-        queue_response(coreSync, rsp.ResponseStatus(ERes.running, ERes.expid,
+        queue_response(coreSync, rsp.ResponseStatus(ERes.running, ERes.expid, ERes.exception_type_id,
                                                     ERes.run_duration, ERes.result))
     elif isinstance(cmd, (cmd_sys.RebootNormal, cmd_sys.RebootSafe)):
         print("Reboot")
@@ -113,7 +110,8 @@ def main_loop():
             
             # may have queued data received from 
             # master side, process that into commands
-            print(".", end='')
+            # print(".", end='')
+            time.sleep(0.02)
             i2c_dev.poll_pending_data()
             num_incoming = in_data_parser.process_pending_data()
             loop_count += 1
@@ -130,6 +128,7 @@ def main_loop():
                 print(rsp)
                 out_data += rsp.bytes
             
+            time.sleep(0.02)
             if len(out_data):
                 print(f"Have data to send: {out_data}")
                 i2c_dev.queue_outdata(out_data)

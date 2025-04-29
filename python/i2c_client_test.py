@@ -52,9 +52,14 @@ class SatelliteSimulator:
         if blk[0] == 0x07:
             running = True if blk[1] else False
             expid = blk[2]
-            runtime = int.from_bytes(blk[3:(3+4)], 'little')
-            res = blk[7:]
-            return f'Status running:{running} exp {expid} {runtime}s: {res}'
+            exception_id = blk[3]
+            runtime = int.from_bytes(blk[4:(4+4)], 'little')
+            res = blk[8:]
+            if exception_id:
+                exstr = f'Exception: {exception_id}'
+            else:
+                exstr = 'OK'
+            return f'Status running:{running} exp {expid} {exstr} {runtime}s: {res}'
         
             
         if blk[0] == 0x09:

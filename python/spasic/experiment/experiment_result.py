@@ -31,6 +31,7 @@ class ExpResult:
     def exception(self, set_to):
         self._exception = set_to 
         self._running = False
+        self.end_time = time.time()
     
     @property 
     def running(self):
@@ -53,6 +54,46 @@ class ExpResult:
             self.end_time = time.time()
             self._running = False
             
+    
+    @property 
+    def exception_type_id(self):
+        if not self._exception:
+            return 0 
+        
+        if not hasattr(self._exception, '__class__'):
+            return 0xfe 
+            
+        ec = self._exception.__class__ 
+        allExceptions = [
+            ArithmeticError, # 0
+            AssertionError,
+            AttributeError,
+            EOFError,
+            Exception,
+            ImportError, # 5
+            IndentationError,
+            IndexError,
+            KeyError,
+            KeyboardInterrupt,
+            LookupError, # 10
+            MemoryError,
+            NameError,
+            NotImplementedError,
+            OSError,
+            OverflowError, # 15
+            RuntimeError,
+            StopIteration,
+            SyntaxError,
+            SystemExit,
+            TypeError,  # 20
+            ValueError,
+            ZeroDivisionError
+        ]
+        for i in range(len(allExceptions)):
+            if ec == allExceptions[i]:
+                return i + 1
+        
+        return 0xff
     
     def __str__(self):
         return f'Exp {self.expid} [{self._completed} {self.run_duration}s]: {self.result}>'
