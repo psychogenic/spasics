@@ -62,8 +62,7 @@ class ResponseError(Response):
     '''
     def __init__(self, err_code:int, err_bts:bytearray=None):
         super().__init__()
-        self.append(b'\x01\x00')
-        self.append(err_code)
+        self.append(bytearray([0x01, 0, err_code]))
         if err_bts is not None and len(err_bts):
             self.append(len(err_bts))
             self.append(err_bts)
@@ -74,15 +73,15 @@ class ResponseExperiment(Response):
     '''
         Response from experiment
         
-        0x09 EXPERIMENTID LEN RESULTBYTES (number of bytes depends on experiment)
+        0x09 EXPERIMENTID COMPLETED EXCEPTID LEN RESULTBYTES (number of bytes depends on experiment)
     '''
-    def __init__(self, exp_id:int, result:bytearray):
+    def __init__(self, exp_id:int, completed:bool, exception_id:int, result:bytearray):
         super().__init__()
-        self.append(b'\x09')
-        self.append(exp_id)
+        self.append(bytearray([0x09, exp_id, 1 if completed else 0, exception_id]))
+        
         if result is not None and len(result):
-            if len(result) > 13:
-                result = result[:13]
+            if len(result) > 11:
+                result = result[:11]
             self.append(len(result))
             self.append(result)
         else:
@@ -103,6 +102,7 @@ class ResponseStatus(Response):
         self.append(exp_id.to_bytes(1, 'little'))
         self.append(exception_id.to_bytes(1, 'little'))
         self.append(run_time_s.to_bytes(4, 'little'))
+        
         if result is not None and len(result):
             if len(result) > 8:
                 self.append(result[:8])

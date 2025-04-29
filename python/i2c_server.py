@@ -174,7 +174,9 @@ def main_loop():
                     # experiment is done!
                     ExperimentRun = False 
                     print("exp done, queue result")
-                    queue_response(rsp.ResponseExperiment(ERes.expid, ERes.result))
+                    queue_response(rsp.ResponseExperiment(ERes.expid, ERes.completed, 
+                                                          ERes.exception_type_id, 
+                                                          ERes.result))
             
             
             num_incoming = process_pending_data()

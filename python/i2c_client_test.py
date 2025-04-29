@@ -72,15 +72,27 @@ class SatelliteSimulator:
             
                 
             elif blk[0] == 0x09:
-                # 0x09 EXPERIMENTID LEN RESULTBYTES (number of bytes depends on experiment)
+                # 0x09 EXPERIMENTID COMPLETED EXCEPT_ID LEN RESULTBYTES (number of bytes depends on experiment)
                 expid = blk[1]
-                reslen = blk[2]
+                completed = blk[2]
+                except_id = blk[3]
+                reslen = blk[4]
                 if reslen:
-                    resmsg = blk[2:(2+reslen)]
+                    resmsg = blk[5:(5+reslen)]
                 else:
                     resmsg = ''
+                
+                end_status = ''
+                if except_id:
+                    end_status = f'Exception {except_id}'
+                else:
+                    if completed:
+                        end_status = 'COMPLETED'
+                    else:
+                        end_status = 'INCOMPLETED?'
                     
-                rcvd.append( f'EXPERIMENT {expid}: {resmsg}' )
+                    
+                rcvd.append( f'EXPERIMENT {expid}: {end_status} {resmsg}' )
             else:
                 rcvd.append(f"Unknown response: {blk}")
         
