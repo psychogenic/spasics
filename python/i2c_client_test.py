@@ -84,12 +84,22 @@ class SatelliteSimulator:
             else:
                 rcvd.append(f"Unknown response: {blk}")
         
+    
+    def abort(self):
+        print("Requesting experiment abort")
+        bts = bytearray([ord('A')])
+        self.send(bts)
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
+        
+        
     def time_sync(self):
         t_now = time.time() - self._start_time
         bts = bytearray([ord('T')])
         bts += t_now.to_bytes(4, 'little')
         print(f"Sending time sync {t_now}")
         self.send(bts)
+        
     def status(self):
         print("Requesting status")
         bts = bytearray([ord('S')])
@@ -127,8 +137,37 @@ def pingit():
         sim.ping()
         time.sleep(0.3)
 
-
+StressCount = 0
+def stressTest():
+    global StressCount 
+    StressCount = 0
+    while True:
+        StressCount += 1
+        sim.run_experiment_now(1)
+        sim.run_experiment_now(2)
+        sim.status()
+        sim.ping()
+        sim.status()
+        sim.ping()
+        sim.status()
+        sim.ping()
+        sim.status()
+        sim.ping()
+        sim.status()
+        sim.ping()
+        time.sleep(0.8)
+        sim.status()
+        sim.run_experiment_now(2)
+        time.sleep(1)
+        sim.status()
+        time.sleep(4)
+        sim.status()
+        sim.run_experiment_now(2)
+        sim.status()
+        time.sleep(1)
+        sim.status()
         
+
         
 if __name__ == '__main__':
     sim = SatelliteSimulator()

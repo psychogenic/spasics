@@ -2,17 +2,19 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
-DefaultGCThreshold = 50000
 
 import gc
-gc.threshold(10000)
+DefaultGCThreshold = gc.threshold()
+gc.threshold(8000)
 import micropython 
 import _thread
 import time 
 import i2c_server 
 import spasic.settings as sts
 from spasic.util.watchdog import SystemWatchdog
+from ttboard.demoboard import DemoBoard
 
+tt = DemoBoard.get()
 gc.threshold(DefaultGCThreshold)
 
 
