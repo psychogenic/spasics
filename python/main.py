@@ -7,13 +7,17 @@ DefaultGCThreshold = 50000
 import gc
 gc.threshold(10000)
 import micropython 
-
+import _thread
 import time 
 import i2c_server 
 import spasic.settings as sts
 from spasic.util.watchdog import SystemWatchdog
 
 gc.threshold(DefaultGCThreshold)
+
+
+if sts.ThreadStackSize:
+    _thread.stack_size(sts.ThreadStackSize)
 
 
 BigDog = None 

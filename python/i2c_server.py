@@ -19,9 +19,6 @@ import spasic.error_codes as error_codes
 from spasic.experiment.experiment_result import ExpResult
 import spasic.experiment.tt_um_factory_test.loader as ldr
 
-if sts.ThreadStackSize:
-    _thread.stack_size(sts.ThreadStackSize)
-
 def tx_done_cb():
     print('i2c tx done')
     
@@ -50,11 +47,13 @@ def handle_command(coreSync:CoreSynchronizer, cmd:Command):
         
         ERes.expid = cmd.experiment_id
         ERes.start()
-        _thread.start_new_thread(ldr.run_experiment, (ERes,))
-        
+        # _thread.start_new_thread(ldr.run_experiment, (ERes,))
         respmsg = b'EXP'
         respmsg += cmd.experiment_id.to_bytes(2, 'little')
         queue_response(coreSync, rsp.ResponseOKMessage(respmsg))
+        
+        ldr.run_experiment(ERes)
+        
         
         
     elif isinstance(cmd, cmd_sys.Ping):
