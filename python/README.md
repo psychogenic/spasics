@@ -86,7 +86,7 @@ make
 
 Then you'll have a `firmware.uf2` in build-somethingsomething that you can install
 
-Finally, copy over the [spasics API modules](https://github.com/psychogenic/spasics/tree/main/python/spasic) and the [shuttles](https://github.com/psychogenic/spasics/tree/main/python/shuttles) directory, from here, onto the micropython filesystem.
+Finally, copy over the [spasics API modules](https://github.com/psychogenic/spasics/tree/main/python/spasic) and the [shuttles](https://github.com/psychogenic/spasics/tree/main/python/shuttles) directory and [config.ini](https://github.com/psychogenic/spasics/blob/main/python/config.ini) [i2c_server.py](https://github.com/psychogenic/spasics/blob/main/python/i2c_server.py) and [main.py](https://github.com/psychogenic/spasics/blob/main/python/main.py), from here, into the root of the micropython filesystem.
 
 For the spasics board, SDA is GPIO2 and SCL is GPIO3. 
 
