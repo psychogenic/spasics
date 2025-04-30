@@ -72,7 +72,7 @@ class SatelliteSimulator:
                     errcode = blk[2]
                     errlen = blk[3]
                     if errlen:
-                        errmsg = blk[3:(3+errlen)]
+                        errmsg = blk[4:(4+errlen)]
                     else:
                         errmsg = ''
                     rcvd.append( f'ERROR [{errcode}] {errmsg}' )
