@@ -17,7 +17,7 @@ from spasic.experiment.experiment_parameters import ExperimentParameters
 from spasic.experiment.experiment_list import ExperimentsAvailable
 from ttboard.demoboard import DemoBoard
 import spasic.util.watchdog
-
+import random
 ERes = ExpResult()
 ExpArgs = ExperimentParameters(DemoBoard.get())
 
@@ -254,8 +254,21 @@ def main_loop():
             # report this unexpected error
             # but don't send a storm of them, if something 
             # goes terribly wrong
-            if (out_queue_length() < 6):
-                ex_type_bts = bytearray([ord('E'), ord('X'), ExpResult.exception_to_id(e)])
+            if (out_queue_length() < 6 and i2c_dev.outdata_queue_size < (16*5)):
+                except_id = ExpResult.exception_to_id(e)
+                
+                ex_type_bts = bytearray([except_id])
+                
+                if e.value is not None:
+                    try:
+                        if len(e.value):
+                            ex_type_bts += bytearray(e.value, 'ascii')
+                        if len(ex_type_bts) > 12:
+                            ex_type_bts = ex_type_bts[:12]
+                    except:
+                        pass
+                
+                print(f"EX {except_id}: {ex_type_bts}")
                 queue_response(rsp.ResponseError(error_codes.RuntimeExceptionCaught, ex_type_bts))
 
 
