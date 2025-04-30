@@ -56,16 +56,13 @@ class ExpResult:
             self.end_time = time.time()
             self._running = False
             
-    
-    @property 
-    def exception_type_id(self):
-        if not self._exception:
-            return 0 
+    @classmethod 
+    def exception_to_id(cls, ex:Exception):
         
-        if not hasattr(self._exception, '__class__'):
+        if not hasattr(ex, '__class__'):
             return 0xfe 
             
-        ec = self._exception.__class__ 
+        ec = ex.__class__ 
         allExceptions = [
             ArithmeticError, # 0
             AssertionError,
@@ -96,6 +93,13 @@ class ExpResult:
                 return i + 1
         
         return 0xff
+    
+    @property 
+    def exception_type_id(self):
+        if not self._exception:
+            return 0 
+        
+        return self.exception_to_id(self._exception)
     
     def __str__(self):
         return f'Exp {self.expid} [{self._completed} {self.run_duration}s]: {self.result}>'

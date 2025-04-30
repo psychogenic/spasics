@@ -3,7 +3,6 @@
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
 
-
 import time
 import gc
 import micropython
@@ -37,22 +36,30 @@ PendingDataNum = 0
 
 PendingDataOut = []
 ExperimentRun = False
+LastTimeSyncMessageTime = -1
+LastTimeSyncValue = 0
+
 def i2c_data_in(numbytes:int, bts:bytearray):
     global PendingDataIn 
     global PendingDataNum
     btslen = int(numbytes)
+    if btslen > 8:
+        btslen = 8
+        
     if len(bts) and btslen:
         PendingDataIn[PendingDataNum][0] = btslen
-        for i in range(numbytes):
+        for i in range(btslen):
             PendingDataIn[PendingDataNum][i+1] = bts[i]
         PendingDataNum += 1
-            
-        # PendingDataIn.append(bytearray(bts))
 
 
 def queue_response(response:rsp.Response):
     global PendingDataOut
     PendingDataOut.append(response.bytes)
+    
+def out_queue_length():
+    global PendingDataOut
+    return len(PendingDataOut)
     
 def get_and_flush_pending_in():
     global PendingDataIn, PendingDataNum
@@ -69,13 +76,15 @@ def get_and_flush_pending_in():
     data_rcvd = []
     for i in range(num_msg):
         bts = data_rcvd_with_len[i]
-        print(f'{bts} {bts[0]}')
+        # print(f'{bts} {bts[0]}')
         data_rcvd.append(bts[1:bts[0]+1])
     #machine.enable_irq()
     return data_rcvd 
 
 def process_pending_data():
     global ExperimentRun
+    global LastTimeSyncMessageTime
+    global LastTimeSyncValue
     data_rcvd = get_and_flush_pending_in()
     if not len(data_rcvd):
         return 0
@@ -124,14 +133,21 @@ def process_pending_data():
             
             respmsg = b'EXP'
             respmsg += exp_id.to_bytes(2, 'little')
-            queue_response(rsp.ResponseOKMessage(respmsg))
+            
+            # ok response
+            responseObj = rsp.ResponseOKMessage(respmsg)
             
             
             runner = ExperimentsAvailable[exp_id]
-            # oldgcthresh = gc.threshold()
-            # gc.threshold(4096)
-            _thread.start_new_thread(runner, (ExpArgs, ERes,))
-            # gc.threshold(oldgcthresh)
+            try:
+                _thread.start_new_thread(runner, (ExpArgs, ERes,))
+            except:
+                # the only reason this might throw, afaik, is 
+                # if something is already running on core1...
+                # either way: not working out, return error instead
+                responseObj = rsp.ResponseError(error_codes.UnterminatedCore1Experiment)
+                
+            queue_response(responseObj)
         elif typebyte == ord('P'):
             print("Ping")
             queue_response(rsp.ResponseOKMessage(payload))
@@ -147,9 +163,10 @@ def process_pending_data():
             
         elif typebyte == ord('T'):
             print("Clock")
+            LastTimeSyncMessageTime = time.time()
             if len(payload) >= 4:
-                tnow = int.from_bytes(payload, 'little')
-                print(f"time {tnow}")
+                LastTimeSyncValue = int.from_bytes(payload, 'little')
+                print(f"time {LastTimeSyncValue}")
         
 
 
@@ -179,14 +196,16 @@ def main_loop():
     micropython.mem_info()
     while True:
         try:
-            
-            # may have queued data received from 
-            # master side, process that into commands
-            # print(".", end='')
-            # time.sleep(0.02)
-            
+            # check if low-level i2c has 
+            # flagged pending data and, if so, 
+            # trigger the fetch/user-callback mech 
+            # to move this data into our globals here
             i2c_dev.poll_pending_data()
             
+            # if an experiment run is ongoing
+            # but it's no longer stating itself 
+            # as running, then it has completed: queue 
+            # the experiment response for output
             if ExperimentRun:
                 if not ERes.running:
                     # experiment is done!
@@ -197,27 +216,47 @@ def main_loop():
                                                           ERes.result))
             
             
+            # if the poll_pending_data() queued up some 
+            # some pending incoming bytes, pass all of 
+            # those through the processor function, which
+            # will likely produce some output to send back
+            # as responses
             num_incoming = process_pending_data()
             if num_incoming:
                 print(f"{num_incoming} msgs")
+                
+            # pending output data may be split into
+            # little chunks of less that 16 bytes, which is
+            # how much gets read out at a time.  We smoosh 
+            # all this into one contiguous bytearray
             out_data = bytearray()
             for outbytes in PendingDataOut:
                 out_data += outbytes
             
+            # reset the global out data list
             PendingDataOut = []
             
-            # time.sleep(0.02)
+            # if we have some out data, shoot that 
+            # off to the device so it can feed it 
+            # out to master as it requests it
             if len(out_data):
                 print(f"data out: {out_data}")
                 i2c_dev.queue_outdata(out_data)
                 
             i2c_dev.push_outgoing_data()
-                
+            
+            # sleep a bit to yield so under the hood
+            # magiks can happen if required
             time.sleep_ms(5)
                 
         except Exception as e:
             print(f'ml ex: {e}')
-            raise e
+            # report this unexpected error
+            # but don't send a storm of them, if something 
+            # goes terribly wrong
+            if (out_queue_length() < 6):
+                ex_type_bts = bytearray([ord('E'), ord('X'), ExpResult.exception_to_id(e)])
+                queue_response(rsp.ResponseError(error_codes.RuntimeExceptionCaught, ex_type_bts))
 
 
     
