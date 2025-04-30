@@ -2,22 +2,21 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
-'''
-    Copyright (C) 2025 Pat Deegan, https://psychogenic.com
-    
-    Simple example of an implementation class that lets you
-    * configure callbacks for async events from i2c
-    
-    * setup the i2c slave, using begin
-    
-    * call queue_data() as much as you like for outgoing
-    
-    * get a callback triggered for all incoming, every tx of a blob
-      and whenever the tx buffer goes empty
+#
+#
+# Simple example of an implementation class that lets you
+# * configure callbacks for async events from i2c
+#
+# * setup the i2c slave, using begin
+#
+# * call queue_data() as much as you like for outgoing
+#
+# * get a callback triggered for all incoming, every tx of a blob
+#   and whenever the tx buffer goes empty
+#
 
-'''
 
-import time
+
 SlaveAddressDefault = 0x51
 DefaultBaudRate = 100000
 
@@ -25,22 +24,23 @@ DefaultBaudRate = 100000
 try:
     import i2cslave
 except:
-    print("\n\n\nERROR: Not running uPython w/i2cslave support!\n\n")
+    print("\n\n\nERROR: NO i2cslave support!\n\n")
 
 HavePendingDataIn = False
 class I2CDevice:
-    '''
-        Construct the device,
-        Set
-            dev.callback_data_in = somefunc taking NUMBYTES, BYTES parms
-            dev.callback_tx_done = signal for blob sent
-            dev.callback_tx_buffer_empty = signal for nothing at all left in tx queue
-            
-        Call begin() and check it returns True
-        
-        Do whatever you like in the meantime
-    
-    '''
+    #
+    # Construct the device,
+    # Set
+    #     dev.callback_data_in = somefunc taking NUMBYTES, BYTES parms
+    #     dev.callback_tx_done = signal for blob sent
+    #     dev.callback_tx_buffer_empty = signal for nothing at all left in tx queue
+    #
+    # Call begin() and check it returns True
+    #
+    # Do whatever you like in the meantime
+    #
+    #
+
     SlaveBufferSize = 16*7
     
     def __init__(self, address:int=SlaveAddressDefault, 
@@ -60,14 +60,6 @@ class I2CDevice:
         self._data_xfer_done = False
         self._scratch_buf = bytearray(32)
         self._scratch_size = 0
-        
-        
-    def data_receivedOLD(self, numbytes:int, bts:bytearray):
-        if self.callback_data_in is not None:
-            self.callback_data_in(numbytes, bts)
-            return 
-        
-        print(f'Data in: {bts}')
     
     def data_received(self, _sz:int):
         global HavePendingDataIn
@@ -81,16 +73,14 @@ class I2CDevice:
         HavePendingDataIn = False # handled
         
         if self.callback_data_in is not None:
-            print("Getting pending")
-            # doing a whole dance here, for nothing...
-            # bts = bytearray(16)
             self._scratch_size = int(i2cslave.pending_data_into(self._scratch_buf))
-            #self._scratch_buf = bytearray(bts)
-            print(f"GOT {self._scratch_buf[:self._scratch_size]}, doing cb")
+            # print(f"GOT {self._scratch_buf[:self._scratch_size]}, doing cb")
             self.callback_data_in(self._scratch_size, self._scratch_buf[:self._scratch_size])
-            print("DONO")
             
-        
+    @property 
+    def outdata_queue_size(self):
+        return len(self._dataqueue)
+    
     def _write_outbytes(self):
         if self._slavebuf_filled or not len(self._dataqueue):
             return 0
@@ -124,12 +114,12 @@ class I2CDevice:
         self._data_xfer_done = False
         self._slavebuf_filled = False
         if self.callback_tx_done is not None:
-            print(f"tx done cb: {self.callback_tx_done}")
+            # print(f"tx done cb: {self.callback_tx_done}")
             self.callback_tx_done()
             
         if not self._write_outbytes():
             if self.callback_tx_buffer_empty is not None:
-                print(f"tx empty cb {self.callback_tx_buffer_empty}")
+                # print(f"tx empty cb {self.callback_tx_buffer_empty}")
                 self.callback_tx_buffer_empty()
                 
         

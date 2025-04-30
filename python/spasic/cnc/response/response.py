@@ -13,17 +13,17 @@ class Response:
                 v = bts % 256
                 self.bytes += v.to_bytes(1, 'little')
             except:
-                print(f"Prob appnd {bts}")
+                print(f"noapp {bts}")
         elif isinstance(bts, list):
             try:
                 self.bytes += bytearray(bts)
             except:
-                print(f"Prob appnd {bts}") 
+                print(f"noapp {bts}") 
         else:
             try:
                 self.bytes += bts 
             except:
-                print(f"Prob appnd {bts}") 
+                print(f"noapp {bts}") 
     
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.bytes}>'
@@ -32,19 +32,19 @@ class Response:
         return f'{self.__class__.__name__} Response: {self.bytes}'
     
 class ResponseOK(Response):
-    '''
-        OK
-        0x01 0x01 b'OK'
-    '''
+    # '''
+    #     OK
+    #     0x01 0x01 b'OK'
+    # '''
     def __init__(self):
         super().__init__()
         self.append(b'\x01\x01OK')
         
 class ResponseOKMessage(Response):
-    '''
-        OKMessage
-        0x01 0x02 b'OK' LEN MSGBYTES
-    '''
+    # '''
+    #     OKMessage
+    #     0x01 0x02 b'OK' LEN MSGBYTES
+    # '''
     def __init__(self, msg:bytearray):
         super().__init__()
         self.append(b'\x01\x02OK')
@@ -56,10 +56,10 @@ class ResponseOKMessage(Response):
         
         
 class ResponseError(Response):
-    '''
-        ERROR
-        0x01 0x00 ERRORCODE ERRLEN BYTES[0:ERRLEN]
-    '''
+    # '''
+    #     ERROR
+    #     0x01 0x00 ERRORCODE ERRLEN BYTES[0:ERRLEN]
+    # '''
     def __init__(self, err_code:int, err_bts:bytearray=None):
         super().__init__()
         self.append(bytearray([0x01, 0, err_code]))
@@ -70,11 +70,11 @@ class ResponseError(Response):
             self.append(0)
             
 class ResponseExperiment(Response):
-    '''
-        Response from experiment
-        
-        0x09 EXPERIMENTID COMPLETED EXCEPTID LEN RESULTBYTES (number of bytes depends on experiment)
-    '''
+    # '''
+    #     Response from experiment
+    #
+    #     0x09 EXPERIMENTID COMPLETED EXCEPTID LEN RESULTBYTES (number of bytes depends on experiment)
+    # '''
     def __init__(self, exp_id:int, completed:bool, exception_id:int, result:bytearray):
         super().__init__()
         self.append(bytearray([0x09, exp_id, 1 if completed else 0, exception_id]))
@@ -88,10 +88,10 @@ class ResponseExperiment(Response):
             self.append(0)
             
 class ResponseStatus(Response):
-    '''
-        Status 
-        0x07 [RUNNING] [EXPID] [RUNTIME 4bytes] [RESULT up to 8 bytes]
-    '''
+    # '''
+    #     Status 
+    #     0x07 [RUNNING] [EXPID] [RUNTIME 4bytes] [RESULT up to 8 bytes]
+    # '''
     def __init__(self, exp_running:bool, exp_id:int=0, exception_id:int=0, run_time_s:int=0, result:bytearray=None):
         super().__init__()
         if exp_running:

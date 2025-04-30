@@ -12,7 +12,7 @@ class SystemWatchdog:
     def __init__(self, timer_period_ms=2000):
         
         if timer_period_ms > (SystemWatchdogTimerTimeoutMs / 2):
-            print("Won't allow timer period more than half the WDT timeout")
+            print("Timer period MUST > 1/2 WDT timeout")
             timer_period_ms = int(SystemWatchdogTimerTimeoutMs / 2)
             
         self.timer_period_ms = timer_period_ms
@@ -46,7 +46,8 @@ BigDog = None
 def enable_watchdog():
     global BigDog 
     if BigDog is not None:
-        raise RuntimeError('Wdog already started!')
+        # already started!
+        raise RuntimeError('Wdog started!')
     
     BigDog = SystemWatchdog()
     BigDog.enable()
