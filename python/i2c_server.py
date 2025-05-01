@@ -42,7 +42,7 @@ def tx_buffer_empty_cb():
 
 ClientVariables = Variables()
 
-PendingDataIn = [bytearray(9), bytearray(9), bytearray(9)]
+PendingDataIn = [bytearray(9), bytearray(9), bytearray(9), bytearray(9), bytearray(9), bytearray(9)]
 PendingDataNum = 0
 
 PendingDataOut = []
@@ -256,7 +256,9 @@ def process_pending_data():
             # TODO:FIXME how much data should we queue per request?
             print(f"fwrite {payload}")
             if len(payload) < 1:
-                return queue_response(invalidReq)
+                print("payload empty -- ignore!")
+                return 
+                # return queue_response(invalidReq)
             
             if not FileSystem.write_bytes(payload):
                 print("WRITE FAILURE")
@@ -407,7 +409,7 @@ def main_loop(runtimes:int=0):
             
             # sleep a bit to yield so under the hood
             # magiks can happen if required
-            time.sleep_ms(5)
+            time.sleep_ms(1)
                 
         except Exception as e:
             print(f'ml ex: {e}')
@@ -430,7 +432,7 @@ def main_loop(runtimes:int=0):
                 
                 print(f"EX {except_id}: {ex_type_bts}")
                 queue_response(rsp.ResponseError(error_codes.RuntimeExceptionCaught, ex_type_bts))
-                if sts.DebugUseSimulatedI2CDevice:
+                if sts.DebugUseSimulatedI2CDevice or sts.RaiseAndBreakMainOnException:
                     raise e
 
 

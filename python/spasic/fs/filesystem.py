@@ -39,6 +39,7 @@ class FSAccess:
         return True
     def mkdir(self, path):
         if not len(path):
+            print("No path passed?")
             return False 
         
         if path[0] != '/':
@@ -57,6 +58,8 @@ class FSAccess:
             except:
                 # DNE
                 os.mkdir(cdir)
+                
+        return self.exists(path)
                     
         
     def close(self):

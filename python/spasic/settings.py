@@ -15,6 +15,7 @@ ThreadStackSize = 0 # 8448 # 7168 # 10240 # 9216 # 8192 # 6144 # 18432
 
 WatchdogEnable = False 
 
+RaiseAndBreakMainOnException = True
 DebugUseSimulatedI2CDevice = False
 
 
