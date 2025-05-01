@@ -13,7 +13,9 @@ I2CBaudRate = 100000
 #ThreadStackSize = 8192
 ThreadStackSize = 0 # 8448 # 7168 # 10240 # 9216 # 8192 # 6144 # 18432
 
-WatchdogEnable = True 
+WatchdogEnable = False 
+
+DebugUseSimulatedI2CDevice = True
 
 
 StartupDelaySeconds = 2  # only for dev, set to 0

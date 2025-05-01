@@ -10,7 +10,11 @@ import machine
 import _thread
 import spasic.cnc.response.response as rsp
 import spasic.settings as sts
-from spasic.i2c.device import I2CDevice
+if sts.DebugUseSimulatedI2CDevice:
+    from spasic.i2c.device_sim import I2CDevice
+else:
+    from spasic.i2c.device import I2CDevice
+    
 import spasic.error_codes as error_codes
 from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
@@ -18,7 +22,6 @@ from spasic.experiment.experiment_list import ExperimentsAvailable
 from ttboard.demoboard import DemoBoard
 from ttboard.mode import RPMode
 import spasic.util.watchdog
-import random
 ERes = ExpResult()
 ExpArgs = ExperimentParameters(DemoBoard.get())
 
@@ -174,16 +177,18 @@ def process_pending_data():
         
 
 
+_I2CDevSingleton = None
 def get_i2c_device():
-    # create our slave device
-    i2c_dev = I2CDevice(address=sts.DeviceAddress, scl=sts.I2CSCL, sda=sts.I2CSDA,
+    global _I2CDevSingleton
+    if _I2CDevSingleton is None:
+        # create our slave device
+        _I2CDevSingleton = I2CDevice(address=sts.DeviceAddress, scl=sts.I2CSCL, sda=sts.I2CSDA,
                         baudrate=sts.I2CBaudRate)
     
-    return i2c_dev
+    return _I2CDevSingleton
 
-def main_loop():
-    global PendingDataOut
-    global ExperimentRun
+def begin():
+    micropython.mem_info()
     i2c_dev = get_i2c_device()
     # setup the callbacks
     i2c_dev.callback_data_in = i2c_data_in
@@ -194,11 +199,17 @@ def main_loop():
     print("i2c:")
     if i2c_dev.begin():
         print("  success")
-    else:
-        print("  init?")
-    
-    micropython.mem_info()
-    while True:
+        return True
+    print("  init?")
+    return False
+
+def main_loop(runtimes:int=0):
+    global PendingDataOut
+    global ExperimentRun
+    i2c_dev = get_i2c_device()
+    loop_count = 0
+    while True and (runtimes == 0 or loop_count < runtimes):
+        loop_count += 1
         try:
             # check if low-level i2c has 
             # flagged pending data and, if so, 
@@ -274,6 +285,8 @@ def main_loop():
                 
                 print(f"EX {except_id}: {ex_type_bts}")
                 queue_response(rsp.ResponseError(error_codes.RuntimeExceptionCaught, ex_type_bts))
+                if sts.DebugUseSimulatedI2CDevice:
+                    raise e
 
 
     
