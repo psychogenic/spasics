@@ -149,7 +149,17 @@ class I2CDevice:
     def sim_master_data_request(self):
         return i2cslave.master_request_data()
         
-    
+    def sim_master_data_all(self):
+        empty = bytearray([0xff]*16)
+        v = i2cslave.master_request_data()
+        retBts = []
+        while v != empty:
+            retBts.append(v)
+            v = i2cslave.master_request_data()
+        
+        return retBts
+            
+            
     
     
     

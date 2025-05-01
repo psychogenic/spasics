@@ -8,8 +8,12 @@ import gc
 import micropython
 import machine
 import _thread
+from spasic.fs.filesystem import FSAccess
 import spasic.cnc.response.response as rsp
 import spasic.settings as sts
+from spasic.variables.variables import Variables
+
+
 if sts.DebugUseSimulatedI2CDevice:
     from spasic.i2c.device_sim import I2CDevice
 else:
@@ -22,6 +26,8 @@ from spasic.experiment.experiment_list import ExperimentsAvailable
 from ttboard.demoboard import DemoBoard
 from ttboard.mode import RPMode
 import spasic.util.watchdog
+
+FileSystem = FSAccess()
 ERes = ExpResult()
 ExpArgs = ExperimentParameters(DemoBoard.get())
 
@@ -34,6 +40,7 @@ def tx_done_cb():
 def tx_buffer_empty_cb():
     pass # print('i2c buffer empty')
 
+ClientVariables = Variables()
 
 PendingDataIn = [bytearray(9), bytearray(9), bytearray(9)]
 PendingDataNum = 0
@@ -152,9 +159,111 @@ def process_pending_data():
                 # the only reason this might throw, afaik, is 
                 # if something is already running on core1...
                 # either way: not working out, return error instead
-                responseObj = rsp.ResponseError(error_codes.UnterminatedCore1Experiment)
+                responseObj = rsp.ResponseError(error_codes.UnterminatedCore1Experiment, b'CORBZY')
                 
             queue_response(responseObj)
+            
+        elif typebyte == ord('F'):
+            # b'FS' VARID -- read size
+            # b'FZ' VARID -- read checksum
+            # b'FO' VARID 'R'|'W' -- open for read or write
+            # b'FD' VARID -- make a directory (including parents)
+            # b'FU' VARID -- unlink/delete a file
+            # b'FM' SRCVARID DESTVARID -- move SRC to DEST
+            
+            invalidReq = rsp.ResponseError(error_codes.InvalidRequest)
+            if len(payload) < 2:
+                return queue_response(invalidReq)
+            
+            action = payload[0]
+            vid = payload[1]
+            if not ClientVariables.has(vid):
+                return queue_response(rsp.ResponseError(error_codes.UnknownVariable))
+            
+            filepath = ClientVariables.get_string(vid)
+            print(f"file action {action} on {filepath}")
+            if action == ord('S'):
+                sz = FileSystem.file_size(filepath)
+                queue_response(rsp.ResponseOKMessage(b'SZ' + sz.to_bytes(4, 'little')))
+            elif action == ord('Z'):
+                cs = FileSystem.simple_checksum(filepath)
+                queue_response(rsp.ResponseOKMessage(b'CS' + cs.to_bytes(4, 'little')))
+                
+            elif action == ord('D'):
+                print("mkdir")
+                if FileSystem.mkdir(filepath):
+                    queue_response(rsp.ResponseOKMessage(b'MKDIR'))
+                else:
+                    queue_response(rsp.ResponseError(error_codes.MakeDirFailure, bytearray([vid])))
+            elif action == ord('U'):
+                print("DEL!")
+                if FileSystem.delete(filepath):
+                    queue_response(rsp.ResponseOKMessage(b'RM'))
+                else:
+                    queue_response(rsp.ResponseError(error_codes.DeleteFileFailure, bytearray([vid])))
+            elif action == ord('M'):
+                
+                if len(payload) < 3:
+                    return queue_response(invalidReq)
+                
+                destvid = payload[2]
+                if not ClientVariables.has(destvid):
+                    return queue_response(rsp.ResponseError(error_codes.UnknownVariable))
+                
+                destpath = ClientVariables.get_string(destvid)
+                print(f"mv {filepath} {destpath}")
+                if FileSystem.move(filepath, destpath):
+                    queue_response(rsp.ResponseOKMessage(b'MV'))
+                else:
+                    queue_response(rsp.ResponseError(error_codes.RenameFileFailure))
+            elif action == ord('O'):
+                if len(payload) < 3:
+                    return queue_response(invalidReq)
+                rw = payload[2]
+                if rw == ord('R'):
+                    print("oread")
+                    if not FileSystem.open_for_read(filepath):
+                        return queue_response(rsp.ResponseError(error_codes.CantOpenFile))
+                elif rw == ord('W'):
+                    print("owrite")
+                    if not FileSystem.open_for_write(filepath):
+                        return queue_response(rsp.ResponseError(error_codes.CantOpenFile))
+                    pass 
+                else:
+                    return queue_response(invalidReq)
+        elif typebyte == ord('F') + ord('C'):
+            print("file close")
+            if FileSystem.close():
+                queue_response(rsp.ResponseOKMessage(b'CLS'))
+            else:
+                queue_response(rsp.ResponseError(error_codes.InvalidRequest, b'NOFL?'))
+                
+        elif typebyte == ord('F') + ord('R'):
+            # TODO:FIXME how much data should we queue per request?
+            read_size = 16*4 - 2
+            if len(payload) > 0:
+                if payload[0]:
+                    read_size = payload[0]
+            
+            print(f"fread {read_size}")
+            dat = FileSystem.read_bytes(read_size)
+            if not len(dat):
+                return queue_response(rsp.ResponseError(error_codes.EndOfFile))
+            
+            queue_response(rsp.ResponseDataBytes(dat))
+            
+        elif typebyte == ord('F') + ord('W'):
+            # TODO:FIXME how much data should we queue per request?
+            print(f"fwrite {payload}")
+            if len(payload) < 1:
+                return queue_response(invalidReq)
+            
+            if not FileSystem.write_bytes(payload):
+                print("WRITE FAILURE")
+                # probably don't want to queue errors, 
+                # we might end up with a storm
+                # queue_response(rsp.ResponseError(error_codes.WriteFailure))
+            
         elif typebyte == ord('P'):
             print("Ping")
             queue_response(rsp.ResponseOKMessage(payload))
@@ -174,8 +283,44 @@ def process_pending_data():
             if len(payload) >= 4:
                 LastTimeSyncValue = int.from_bytes(payload, 'little')
                 print(f"time {LastTimeSyncValue}")
+        elif typebyte == ord('V'):
+            print("Get variable")
+            if len(payload) < 1:
+                queue_response(rsp.ResponseError(error_codes.InvalidRequest))
+                return
+            vid = payload[0]
+            if not ClientVariables.has(vid):
+                queue_response(rsp.ResponseError(error_codes.UnknownVariable, bytearray([vid])))
+                return
+            queue_response(rsp.ResponseVariableValue(vid, ClientVariables.get_bytearray(vid)))
+                
         
-
+        elif typebyte == ord('V') + ord('S'):
+            print("Set variable")
+            if len(payload) < 1:
+                queue_response(rsp.ResponseError(error_codes.InvalidRequest))
+                return
+            vid = payload[0]
+            if len(payload) < 2:
+                print("Setting to empty")
+                ClientVariables.set(vid, bytearray())
+            else:
+                print(f"Setting to {payload[1:]}")
+                ClientVariables.set(vid, payload[1:])
+                
+            queue_response(rsp.ResponseOK())
+            
+        elif typebyte == ord('V') + ord('A'):
+            print("Append variable")
+            if len(payload) < 2:
+                queue_response(rsp.ResponseError(error_codes.InvalidRequest))
+                return
+            vid = payload[0]
+            if not ClientVariables.has(vid):
+                queue_response(rsp.ResponseError(error_codes.UnknownVariable, bytearray([vid])))
+                return
+                
+            ClientVariables.append(vid, payload[1:])
 
 _I2CDevSingleton = None
 def get_i2c_device():

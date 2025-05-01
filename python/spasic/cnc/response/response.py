@@ -108,4 +108,17 @@ class ResponseStatus(Response):
                 self.append(result[:8])
             else:
                 self.append(result)
-        
+
+class ResponseVariableValue(Response):
+    def __init__(self, vid:id, value:bytearray):
+        super().__init__()
+        self.append(b'V')
+        self.append(vid)
+        self.append(len(value))
+        self.append(value)
+class ResponseDataBytes(Response):
+    def __init__(self, value:bytearray):
+        super().__init__()
+        self.append(b'D')
+        self.append(len(value))
+        self.append(value)

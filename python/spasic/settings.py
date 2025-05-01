@@ -15,10 +15,10 @@ ThreadStackSize = 0 # 8448 # 7168 # 10240 # 9216 # 8192 # 6144 # 18432
 
 WatchdogEnable = False 
 
-DebugUseSimulatedI2CDevice = True
+DebugUseSimulatedI2CDevice = False
 
 
-StartupDelaySeconds = 2  # only for dev, set to 0
+StartupDelaySeconds = 0 # only for dev, set to 0
 
 RebootResponseDelaySeconds = 3 # TODO: can we lower this, do we need to raise it?  Tibor!
 
