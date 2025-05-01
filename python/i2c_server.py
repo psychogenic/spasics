@@ -16,6 +16,7 @@ from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
 from spasic.experiment.experiment_list import ExperimentsAvailable
 from ttboard.demoboard import DemoBoard
+from ttboard.mode import RPMode
 import spasic.util.watchdog
 import random
 ERes = ExpResult()
@@ -137,6 +138,9 @@ def process_pending_data():
             # ok response
             responseObj = rsp.ResponseOKMessage(respmsg)
             
+            # always ensure we start fresh in ASIC_RP_CONTROL mode,
+            # just in case an experiment messed with it.
+            DemoBoard.get().mode = RPMode.ASIC_RP_CONTROL
             
             runner = ExperimentsAvailable[exp_id]
             try:
