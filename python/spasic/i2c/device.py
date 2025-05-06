@@ -16,10 +16,7 @@
 #
 
 
-
-SlaveAddressDefault = 0x51
-DefaultBaudRate = 100000
-
+import spasic.settings as sts 
 
 try:
     import i2cslave
@@ -27,6 +24,7 @@ except:
     print("\n\n\nERROR: NO i2cslave support!\n\n")
 
 HavePendingDataIn = False
+
 class I2CDevice:
     #
     # Construct the device,
@@ -43,15 +41,18 @@ class I2CDevice:
 
     SlaveBufferSize = 16*7
     
-    def __init__(self, address:int=SlaveAddressDefault, 
-                 scl:int=3, 
-                 sda:int=2, baudrate:int=DefaultBaudRate):
+    def __init__(self, address:int=sts.DeviceAddress, 
+                 scl:int=sts.I2CSCL, 
+                 sda:int=sts.I2CSDA, 
+                 baudrate:int=sts.I2CBaudRate,
+                 use_polling:bool=sts.I2CUsePollingDefault):
         self._addr = address 
         self._scl = scl 
         self._sda = sda 
         self._baud = baudrate
         self._dataqueue = bytearray()
         self._slavebuf_filled = False
+        self.use_polling = use_polling
         
         self.callback_data_in = None
         self.callback_tx_done = None 
@@ -67,6 +68,11 @@ class I2CDevice:
         
     def poll_pending_data(self):
         global HavePendingDataIn
+        
+        if self.use_polling:
+            if i2cslave.have_pending_data():
+                HavePendingDataIn = True 
+        
         if not HavePendingDataIn: # self._have_pending:
             return
         
@@ -108,6 +114,11 @@ class I2CDevice:
         self._data_xfer_done = True 
         
     def push_outgoing_data(self):
+        
+        if self.use_polling:
+            if i2cslave.tx_done():
+                self._data_xfer_done = True
+        
         if not self._data_xfer_done:
             return 
         
@@ -127,8 +138,12 @@ class I2CDevice:
         
     def begin(self):
         i2cslave.setup(self._addr, self._scl, self._sda, self._baud) 
-        i2cslave.set_datain_callback(self.data_received)
-        i2cslave.set_datatxdone_callback(self._data_tx_done_cb)
+        if self.use_polling:
+            print("Using pure POLLING on I2C")
+        else:
+            print("Using CALLBACKS on I2C")
+            i2cslave.set_datain_callback(self.data_received)
+            i2cslave.set_datatxdone_callback(self._data_tx_done_cb)
         try:
             i2cslave.initialize()
         except:

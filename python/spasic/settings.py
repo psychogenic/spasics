@@ -9,6 +9,7 @@ DeviceAddress = 0x51
 I2CSCL = 3
 I2CSDA = 2
 I2CBaudRate = 100000
+I2CUsePollingDefault = True
 
 #ThreadStackSize = 8192
 ThreadStackSize = 0 # 8448 # 7168 # 10240 # 9216 # 8192 # 6144 # 18432

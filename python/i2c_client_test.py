@@ -18,8 +18,9 @@ class SatelliteSimulator:
         and knows how to craft message and interpret 
         data coming back.
     '''
-    def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
-        self._i2c = machine.I2C(0, scl=scl, sda=sda, freq=baudrate)
+    #def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
+    def __init__(self, scl:int=23, sda:int=22, baudrate:int=100000):
+        self._i2c = machine.I2C(1, scl=scl, sda=sda, freq=baudrate)
         self._start_time = time.time()
         self._ping_count = 0
         self.packet_gen = ClientPacketGenerator()
@@ -28,14 +29,22 @@ class SatelliteSimulator:
         '''
             send raw bytes over to device
         '''
-        self._i2c.writeto(SlaveAddress, bts)
+        try:
+            self._i2c.writeto(SlaveAddress, bts)
+        except Exception as e:
+            print(e)
         time.sleep(0.01)
         
     def read_block(self):
         '''
             read a block of 16 bytes from device
         '''
-        return self._i2c.readfrom(SlaveAddress, 16)
+        empty = bytearray([0x00] * 16)
+        try:
+            return self._i2c.readfrom(SlaveAddress, 16)
+        except Exception as e:
+            print(e)
+            return empty
     
     def read_pending(self):
         v = self.fetch_pending()
@@ -62,7 +71,7 @@ class SatelliteSimulator:
             and "empty" response (all 0xff)
             and interpret the data
         '''
-        empty = bytearray([0xff]*16)
+        empty = bytearray([0x00]*16)
         
         rcvd = []
         while True:
