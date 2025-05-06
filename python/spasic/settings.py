@@ -18,6 +18,7 @@ WatchdogEnable = False
 RaiseAndBreakMainOnException = True
 DebugUseSimulatedI2CDevice = False
 
+DisableRebootsWithoutWatchdog = True 
 
 StartupDelaySeconds = 0 # only for dev, set to 0
 

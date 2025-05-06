@@ -56,8 +56,9 @@ def force_reboot():
     global BigDog 
     if BigDog is None:
         print('No wdog to force reboot!')
-        time.sleep(0.5)
-        reset()
+        if not sts.DisableRebootsWithoutWatchdog:
+            time.sleep(0.5)
+            reset()
         return False
         
     BigDog.stop_feeding()
