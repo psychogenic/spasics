@@ -4,14 +4,13 @@
 '''
 
 import time
-import gc
 import micropython
 import machine
 import _thread
-from spasic.fs.filesystem import FSAccess
+from ttboard.demoboard import DemoBoard # keep this
+import i2c_server_globals as i2cglb
 import spasic.cnc.response.response as rsp
 import spasic.settings as sts
-from spasic.variables.variables import Variables
 
 
 if sts.DebugUseSimulatedI2CDevice:
@@ -20,13 +19,12 @@ else:
     from spasic.i2c.device import I2CDevice
     
 import spasic.error_codes as error_codes
-from spasic.experiment.experiment_result import ExpResult
-from spasic.experiment.experiment_parameters import ExperimentParameters
 from spasic.experiment.experiment_list import ExperimentsAvailable
-from ttboard.demoboard import DemoBoard
 from ttboard.mode import RPMode
 import spasic.util.watchdog
 
+import i2c_server_handlers as handlers
+from i2c_server_handlers import queue_response
 
 
 
@@ -40,38 +38,31 @@ def tx_buffer_empty_cb():
 
 
 def i2c_data_in(numbytes:int, bts:bytearray):
-    global PendingDataIn 
-    global PendingDataNum
     btslen = int(numbytes)
     if btslen > 8:
         btslen = 8
         
     if len(bts) and btslen:
-        PendingDataIn[PendingDataNum][0] = btslen
+        i2cglb.PendingDataIn[i2cglb.PendingDataNum][0] = btslen
         for i in range(btslen):
-            PendingDataIn[PendingDataNum][i+1] = bts[i]
-        PendingDataNum += 1
+            i2cglb.PendingDataIn[i2cglb.PendingDataNum][i+1] = bts[i]
+        i2cglb.PendingDataNum += 1
 
 
-def queue_response(response:rsp.Response):
-    global PendingDataOut
-    PendingDataOut.append(response.bytes)
     
 def out_queue_length():
-    global PendingDataOut
-    return len(PendingDataOut)
+    return len(i2cglb.PendingDataOut)
     
 def get_and_flush_pending_in():
-    global PendingDataIn, PendingDataNum
     # machine.disable_irq()
-    if not PendingDataNum:
+    if not i2cglb.PendingDataNum:
         # machine.enable_irq()
         return []
     
     # race condition ?
-    data_rcvd_with_len = list(PendingDataIn)
-    num_msg = int(PendingDataNum)
-    PendingDataNum = 0
+    data_rcvd_with_len = list(i2cglb.PendingDataIn)
+    num_msg = int(i2cglb.PendingDataNum)
+    i2cglb.PendingDataNum = 0
     
     data_rcvd = []
     for i in range(num_msg):
@@ -82,33 +73,26 @@ def get_and_flush_pending_in():
     return data_rcvd 
 
 def process_pending_data():
-    global ExperimentRun
-    global LastTimeSyncMessageTime
-    global LastTimeSyncValue
     data_rcvd = get_and_flush_pending_in()
     if not len(data_rcvd):
         return 0
 
-    
+    # any handler that's involved is found in 
+    # i2c_server_handlers.  Small ones, and the 
+    # experiment runner, are directly here
     for bts in data_rcvd:
         typebyte = bts[0]
         payload = bts[1:]
         if typebyte == ord('A'):
             print("Abort")
-            ExpArgs.terminate()
-            if ERes.running:
-                respmsg = b'TRM'
-                respmsg += ERes.expid.to_bytes(2, 'little')
-                queue_response(rsp.ResponseOKMessage(respmsg))
-            else:
-                queue_response(rsp.ResponseOK())
+            handlers.abort()
                 
         elif typebyte == ord('E'):
             print("Run")
                 
-            if ERes.running:
+            if i2cglb.ERes.running:
                 queue_response(rsp.ResponseError(error_codes.Busy, 
-                                                      ERes.expid.to_bytes(2, 'little')))
+                                                      i2cglb.ERes.expid.to_bytes(2, 'little')))
                 return 
             
             exp_argument_bytes = None
@@ -126,10 +110,10 @@ def process_pending_data():
                 return 
             
             
-            ERes.expid = exp_id
-            ERes.start()
-            ExpArgs.start(exp_argument_bytes)
-            ExperimentRun = True
+            i2cglb.ERes.expid = exp_id
+            i2cglb.ERes.start()
+            i2cglb.ExpArgs.start(exp_argument_bytes)
+            i2cglb.ExperimentRun = True
             
             respmsg = b'EXP'
             respmsg += exp_id.to_bytes(2, 'little')
@@ -143,7 +127,7 @@ def process_pending_data():
             
             runner = ExperimentsAvailable[exp_id]
             try:
-                _thread.start_new_thread(runner, (ExpArgs, ERes,))
+                _thread.start_new_thread(runner, (i2cglb.ExpArgs, i2cglb.ERes,))
             except:
                 # the only reason this might throw, afaik, is 
                 # if something is already running on core1...
@@ -159,102 +143,17 @@ def process_pending_data():
             # b'FD' VARID -- make a directory (including parents)
             # b'FU' VARID -- unlink/delete a file
             # b'FM' SRCVARID DESTVARID -- move SRC to DEST
-            
-            invalidReq = rsp.ResponseError(error_codes.InvalidRequest)
-            if len(payload) < 2:
-                return queue_response(invalidReq)
-            
-            action = payload[0]
-            vid = payload[1]
-            if not ClientVariables.has(vid):
-                return queue_response(rsp.ResponseError(error_codes.UnknownVariable))
-            
-            filepath = ClientVariables.get_string(vid)
-            print(f"file action {action} on {filepath}")
-            if action == ord('S'):
-                sz = FileSystem.file_size(filepath)
-                queue_response(rsp.ResponseOKMessage(b'SZ' + sz.to_bytes(4, 'little')))
-            elif action == ord('Z'):
-                cs = FileSystem.simple_checksum(filepath)
-                queue_response(rsp.ResponseOKMessage(b'CS' + cs.to_bytes(4, 'little')))
-                
-            elif action == ord('D'):
-                print("mkdir")
-                if FileSystem.mkdir(filepath):
-                    queue_response(rsp.ResponseOKMessage(b'MKDIR'))
-                else:
-                    queue_response(rsp.ResponseError(error_codes.MakeDirFailure, bytearray([vid])))
-            elif action == ord('U'):
-                print("DEL!")
-                if FileSystem.delete(filepath):
-                    queue_response(rsp.ResponseOKMessage(b'RM'))
-                else:
-                    queue_response(rsp.ResponseError(error_codes.DeleteFileFailure, bytearray([vid])))
-            elif action == ord('M'):
-                
-                if len(payload) < 3:
-                    return queue_response(invalidReq)
-                
-                destvid = payload[2]
-                if not ClientVariables.has(destvid):
-                    return queue_response(rsp.ResponseError(error_codes.UnknownVariable))
-                
-                destpath = ClientVariables.get_string(destvid)
-                print(f"mv {filepath} {destpath}")
-                if FileSystem.move(filepath, destpath):
-                    queue_response(rsp.ResponseOKMessage(b'MV'))
-                else:
-                    queue_response(rsp.ResponseError(error_codes.RenameFileFailure))
-            elif action == ord('O'):
-                if len(payload) < 3:
-                    return queue_response(invalidReq)
-                rw = payload[2]
-                if rw == ord('R'):
-                    print("oread")
-                    if not FileSystem.open_for_read(filepath):
-                        return queue_response(rsp.ResponseError(error_codes.CantOpenFile))
-                elif rw == ord('W'):
-                    print("owrite")
-                    if not FileSystem.open_for_write(filepath):
-                        return queue_response(rsp.ResponseError(error_codes.CantOpenFile))
-                    pass 
-                else:
-                    return queue_response(invalidReq)
+            return handlers.fs_action_on_vid(payload)
+        
         elif typebyte == ord('F') + ord('C'):
             print("file close")
-            if FileSystem.close():
-                queue_response(rsp.ResponseOKMessage(b'CLS'))
-            else:
-                queue_response(rsp.ResponseError(error_codes.InvalidRequest, b'NOFL?'))
+            handlers.fs_file_close()
                 
         elif typebyte == ord('F') + ord('R'):
-            # TODO:FIXME how much data should we queue per request?
-            read_size = 16*4 - 2
-            if len(payload) > 0:
-                if payload[0]:
-                    read_size = payload[0]
-            
-            print(f"fread {read_size}")
-            dat = FileSystem.read_bytes(read_size)
-            if not len(dat):
-                return queue_response(rsp.ResponseError(error_codes.EndOfFile))
-            
-            queue_response(rsp.ResponseDataBytes(dat))
+            handlers.fs_file_read(payload)
             
         elif typebyte == ord('F') + ord('W'):
-            # TODO:FIXME how much data should we queue per request?
-            print(f"fwrite {payload}")
-            if len(payload) < 1:
-                print("payload empty -- ignore!")
-                return 
-                # return queue_response(invalidReq)
-            
-            if not FileSystem.write_bytes(payload):
-                print("WRITE FAILURE")
-                # probably don't want to queue errors, 
-                # we might end up with a storm
-                # queue_response(rsp.ResponseError(error_codes.WriteFailure))
-            
+            handlers.fs_file_write(payload)
         elif typebyte == ord('P'):
             print("Ping")
             queue_response(rsp.ResponseOKMessage(payload))
@@ -265,53 +164,24 @@ def process_pending_data():
 
         elif typebyte == ord('S'):
             print("Status")
-            queue_response(rsp.ResponseStatus(ERes.running, ERes.expid, ERes.exception_type_id,
-                                              ERes.run_duration, ERes.result))
+            res = i2cglb.ERes
+            queue_response(rsp.ResponseStatus(res.running, res.expid, res.exception_type_id,
+                                              res.run_duration, res.result))
             
         elif typebyte == ord('T'):
             print("Clock")
-            LastTimeSyncMessageTime = time.time()
-            if len(payload) >= 4:
-                LastTimeSyncValue = int.from_bytes(payload, 'little')
-                print(f"time {LastTimeSyncValue}")
+            handlers.time_sync(payload)
         elif typebyte == ord('V'):
             print("Get variable")
-            if len(payload) < 1:
-                queue_response(rsp.ResponseError(error_codes.InvalidRequest))
-                return
-            vid = payload[0]
-            if not ClientVariables.has(vid):
-                queue_response(rsp.ResponseError(error_codes.UnknownVariable, bytearray([vid])))
-                return
-            queue_response(rsp.ResponseVariableValue(vid, ClientVariables.get_bytearray(vid)))
-                
+            handlers.variable_get(payload)
         
         elif typebyte == ord('V') + ord('S'):
             print("Set variable")
-            if len(payload) < 1:
-                queue_response(rsp.ResponseError(error_codes.InvalidRequest))
-                return
-            vid = payload[0]
-            if len(payload) < 2:
-                print("Setting to empty")
-                ClientVariables.set(vid, bytearray())
-            else:
-                print(f"Setting to {payload[1:]}")
-                ClientVariables.set(vid, payload[1:])
-                
-            queue_response(rsp.ResponseOK())
+            handlers.variable_set(payload)
             
         elif typebyte == ord('V') + ord('A'):
             print("Append variable")
-            if len(payload) < 2:
-                queue_response(rsp.ResponseError(error_codes.InvalidRequest))
-                return
-            vid = payload[0]
-            if not ClientVariables.has(vid):
-                queue_response(rsp.ResponseError(error_codes.UnknownVariable, bytearray([vid])))
-                return
-                
-            ClientVariables.append(vid, payload[1:])
+            handlers.variable_append(payload)
 
 _I2CDevSingleton = None
 def get_i2c_device():
@@ -381,17 +251,17 @@ def begin():
     print("  init?")
     return False
 def experiment_terminate():
-    if not ERes.running:
+    if not i2cglb.ERes.running:
         print("Nothing running")
         return 
     
-    ExpArgs.terminate()
+    i2cglb.ExpArgs.terminate()
     
     print("Termination requested")
     
 def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     print("Test Exp")
-    if ERes.running:
+    if i2cglb.ERes.running:
         print("Already busy!")
         return False
         
@@ -402,9 +272,9 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     if exp_argument_bytes is None:
         exp_argument_bytes = bytearray(10)
     
-    ERes.expid = exp_id
-    ERes.start()
-    ExpArgs.start(exp_argument_bytes)
+    i2cglb.ERes.expid = exp_id
+    i2cglb.ERes.start()
+    i2cglb.ExpArgs.start(exp_argument_bytes)
     
 
     # always ensure we start fresh in ASIC_RP_CONTROL mode,
@@ -413,7 +283,7 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     
     runner = ExperimentsAvailable[exp_id]
     try:
-        _thread.start_new_thread(runner, (ExpArgs, ERes,))
+        _thread.start_new_thread(runner, (i2cglb.ExpArgs, i2cglb.ERes,))
     except:
         # the only reason this might throw, afaik, is 
         # if something is already running on core1...
@@ -423,11 +293,9 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     
     print("Launched")
         
-    return ERes
+    return i2cglb.ERes
 
 def main_loop(runtimes:int=0):
-    global PendingDataOut
-    global ExperimentRun
     i2c_dev = get_i2c_device()
     loop_count = 0
     while True and (runtimes == 0 or loop_count < runtimes):
@@ -443,14 +311,15 @@ def main_loop(runtimes:int=0):
             # but it's no longer stating itself 
             # as running, then it has completed: queue 
             # the experiment response for output
-            if ExperimentRun:
-                if not ERes.running:
+            if i2cglb.ExperimentRun:
+                res = i2cglb.ERes
+                if not res.running:
                     # experiment is done!
-                    ExperimentRun = False 
+                    i2cglb.ExperimentRun = False 
                     print("exp done, queue result")
-                    queue_response(rsp.ResponseExperiment(ERes.expid, ERes.completed, 
-                                                          ERes.exception_type_id, 
-                                                          ERes.result))
+                    queue_response(rsp.ResponseExperiment(res.expid, res.completed, 
+                                                          res.exception_type_id, 
+                                                          res.result))
             
             
             # if the poll_pending_data() queued up some 
@@ -467,11 +336,11 @@ def main_loop(runtimes:int=0):
             # how much gets read out at a time.  We smoosh 
             # all this into one contiguous bytearray
             out_data = bytearray()
-            for outbytes in PendingDataOut:
+            for outbytes in i2cglb.PendingDataOut:
                 out_data += outbytes
             
             # reset the global out data list
-            PendingDataOut = []
+            i2cglb.PendingDataOut = []
             
             # if we have some out data, shoot that 
             # off to the device so it can feed it 
@@ -492,7 +361,7 @@ def main_loop(runtimes:int=0):
             # but don't send a storm of them, if something 
             # goes terribly wrong
             if (out_queue_length() < 6 and i2c_dev.outdata_queue_size < (16*5)):
-                except_id = ExpResult.exception_to_id(e)
+                except_id = i2cglb.ExpResult.exception_to_id(e)
                 
                 ex_type_bts = bytearray([except_id])
                 
