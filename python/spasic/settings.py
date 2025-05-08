@@ -5,17 +5,18 @@
 
 
 
-DeviceAddress = 0x51
+DeviceAddress = 0x56
 I2CSCL = 3
 I2CSDA = 2
 I2CBaudRate = 100000
+I2CPullups = True
 I2CUsePollingDefault = True
 
 #ThreadStackSize = 8192
 ThreadStackSize = 0 # 8448 # 7168 # 10240 # 9216 # 8192 # 6144 # 18432
 
 WatchdogEnable = False 
-
+PerformPOSTTest = False
 RaiseAndBreakMainOnException = True
 DebugUseSimulatedI2CDevice = False
 

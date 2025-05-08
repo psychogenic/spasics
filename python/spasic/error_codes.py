@@ -16,3 +16,4 @@ WriteFailure = 0x0A
 MakeDirFailure = 0x0B
 DeleteFileFailure = 0x0C
 RenameFileFailure = 0x0D
+POSTTestFail = 0x0E

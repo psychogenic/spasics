@@ -45,11 +45,13 @@ class I2CDevice:
                  scl:int=sts.I2CSCL, 
                  sda:int=sts.I2CSDA, 
                  baudrate:int=sts.I2CBaudRate,
+                 use_pullups:bool=sts.I2CPullups,
                  use_polling:bool=sts.I2CUsePollingDefault):
         self._addr = address 
         self._scl = scl 
         self._sda = sda 
         self._baud = baudrate
+        self._i2c_pullups = use_pullups
         self._dataqueue = bytearray()
         self._slavebuf_filled = False
         self.use_polling = use_polling
@@ -137,7 +139,8 @@ class I2CDevice:
         
         
     def begin(self):
-        i2cslave.setup(self._addr, self._scl, self._sda, self._baud) 
+        pu_value = 1 if self._i2c_pullups else 0
+        i2cslave.setup(self._addr, self._scl, self._sda, self._baud, pu_value) 
         if self.use_polling:
             print("Using pure POLLING on I2C")
         else:

@@ -27,10 +27,6 @@ from ttboard.demoboard import DemoBoard
 from ttboard.mode import RPMode
 import spasic.util.watchdog
 
-FileSystem = FSAccess()
-ERes = ExpResult()
-ExpArgs = ExperimentParameters(DemoBoard.get())
-
 
 
 
@@ -40,15 +36,8 @@ def tx_done_cb():
 def tx_buffer_empty_cb():
     pass # print('i2c buffer empty')
 
-ClientVariables = Variables()
 
-PendingDataIn = [bytearray(9), bytearray(9), bytearray(9), bytearray(9), bytearray(9), bytearray(9)]
-PendingDataNum = 0
 
-PendingDataOut = []
-ExperimentRun = False
-LastTimeSyncMessageTime = -1
-LastTimeSyncValue = 0
 
 def i2c_data_in(numbytes:int, bts:bytearray):
     global PendingDataIn 
@@ -334,6 +323,48 @@ def get_i2c_device():
     
     return _I2CDevSingleton
 
+
+def POST(numiterations:int=3):
+    print("\n\nPerforming POST!\n")
+    arg_bytes = bytearray([numiterations, 0, 0])
+    status = debug_launch_experiment(1, arg_bytes)
+    if not status:
+        print("Problem launching")
+        return
+    else:
+        print("Running")
+        while status.running:
+            time.sleep(0.5)
+            print(status.result)
+            
+        num_fails = int.from_bytes(status.result[0:4], 'little')
+        if num_fails:
+            print(f"Had {num_fails} failures on first test, skipping second.")
+            ret_bytes = bytearray(5)
+            ret_bytes[0:4] = num_fails.to_bytes(4, 'little')
+            queue_response(rsp.ResponseError(error_codes.POSTTestFail, ret_bytes))
+            return
+        
+        print("Done!  Launching bidirs")
+        arg_bytes[2] = 1
+        status = debug_launch_experiment(1, arg_bytes)
+        while status.running:
+            time.sleep(0.5)
+            print(status.result)
+            
+        num_fails += int.from_bytes(status.result[0:4], 'little')
+        
+        if num_fails:
+            ret_bytes = bytearray(5)
+            ret_bytes[4] = 1
+            ret_bytes[0:4] = num_fails.to_bytes(4, 'little')
+            queue_response(rsp.ResponseError(error_codes.POSTTestFail, ret_bytes))
+        else:
+            queue_response(rsp.ResponseOKMessage(b'POST'))
+            
+        
+        print(f"Total failures: {num_fails}")
+        
 def begin():
     micropython.mem_info()
     i2c_dev = get_i2c_device()
@@ -349,6 +380,50 @@ def begin():
         return True
     print("  init?")
     return False
+def experiment_terminate():
+    if not ERes.running:
+        print("Nothing running")
+        return 
+    
+    ExpArgs.terminate()
+    
+    print("Termination requested")
+    
+def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
+    print("Test Exp")
+    if ERes.running:
+        print("Already busy!")
+        return False
+        
+    if exp_id not in ExperimentsAvailable:
+        print("Unknown exp")
+        return False
+    
+    if exp_argument_bytes is None:
+        exp_argument_bytes = bytearray(10)
+    
+    ERes.expid = exp_id
+    ERes.start()
+    ExpArgs.start(exp_argument_bytes)
+    
+
+    # always ensure we start fresh in ASIC_RP_CONTROL mode,
+    # just in case an experiment messed with it.
+    DemoBoard.get().mode = RPMode.ASIC_RP_CONTROL
+    
+    runner = ExperimentsAvailable[exp_id]
+    try:
+        _thread.start_new_thread(runner, (ExpArgs, ERes,))
+    except:
+        # the only reason this might throw, afaik, is 
+        # if something is already running on core1...
+        # either way: not working out, return error instead
+        print("Core BZY!")
+        return False
+    
+    print("Launched")
+        
+    return ERes
 
 def main_loop(runtimes:int=0):
     global PendingDataOut

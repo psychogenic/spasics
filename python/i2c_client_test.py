@@ -7,7 +7,7 @@ import machine
 import time 
 import random
 
-SlaveAddress = 0x51 
+SlaveAddress = 0x56
 ResponseDelaySeconds = 0.5
 
 from i2c_client_packets import ClientPacketGenerator

@@ -14,6 +14,7 @@ import spasic.settings as sts
 from spasic.util.watchdog import SystemWatchdog, enable_watchdog
 from ttboard.demoboard import DemoBoard
 
+Debug = False
 tt = DemoBoard.get()
 gc.threshold(DefaultGCThreshold)
 
@@ -36,11 +37,13 @@ if sts.StartupDelaySeconds:
         print(f'Waiting {sts.StartupDelaySeconds}s to start...')
         time.sleep(sts.StartupDelaySeconds)
 
-print("Start-up!  Launching server...")
-Debug = False 
+print(f"Start-up!  Launching server... (debug: {Debug})")
 if not Debug:
     # run the mainloop forever 
     i2c_server.begin()
+    
+    if sts.PerformPOSTTest:
+        i2c_server.POST()
      
     if sts.DebugUseSimulatedI2CDevice:  
         print("\nXXX WARNING WARNING: using SIMULATED i2c device XXX\n")
@@ -148,10 +151,9 @@ if not Debug:
     else:
         i2c_server.main_loop()
 else:
-    print("DEBUG mode -- play with i2c_dev etc")
-    from i2c_server import *
-    i2c_dev = get_i2c_device()
-    i2c_dev.callback_data_in = i2c_data_in
-    i2c_dev.callback_tx_done = tx_done_cb 
-    i2c_dev.callback_tx_buffer_empty = tx_buffer_empty_cb
-    i2c_dev.begin()
+    print("DEBUG mode -- TESTING ASIC/wiring")
+    # test experiment uses
+    # params[0:2] as num iterations (little endian)
+    # and params[2] for exp selection
+    i2c_server.POST(5)
+        
