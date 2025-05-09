@@ -3,13 +3,20 @@
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
 
-import machine 
 import time 
+MachineAvailable = False
+try:
+    import machine 
+    MachineAvailable = True
+except:
+    print("No MACHINE -- only packet constructor available")
+    
+#import time 
 import random
 import os
 
 SlaveAddress = 0x56
-ResponseDelaySeconds = 0.5
+ResponseDelayMs = 50
 
 from i2c_client_packets import ClientPacketGenerator, ErrorCodes
 
@@ -27,38 +34,287 @@ class SatelliteSimulator:
     '''
     #def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
     def __init__(self, scl:int=23, sda:int=22, baudrate:int=100000):
-        self._i2c = machine.I2C(1, scl=scl, sda=sda, freq=baudrate)
+        self._i2c = None
+        if baudrate != 0:
+            self._i2c = machine.I2C(1, scl=scl, sda=sda, freq=baudrate)
         self._start_time = time.time()
         self._ping_count = 0
         self.packet_gen = ClientPacketGenerator()
         
-    def send(self, bts:bytearray):
-        '''
-            send raw bytes over to device
-        '''
-        try:
-            self._i2c.writeto(SlaveAddress, bts)
-        except Exception as e:
-            print(e)
-        time.sleep(0.01)
-        
-    def read_block(self):
-        '''
-            read a block of 16 bytes from device
-        '''
-        empty = bytearray([0x00] * 16)
-        try:
-            return self._i2c.readfrom(SlaveAddress, 16)
-        except Exception as e:
-            print(e)
-            return empty
     
+    def ping(self, cnt:int=None):
+        '''
+            ping -- heartbeat/function check
+            @param count: ping count
+        ''' 
+        # 'P' and payload byte to get back in pong
+        if cnt is None:
+            self._ping_count += 1
+            cnt = self._ping_count
+        print(f"Sending ping {self._ping_count}")
+        self.send(self.packet_gen.ping(cnt))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    
+    def run_experiment_now(self, experiment_id:int, args:bytearray=None):
+        '''
+            run_experiment_now -- launch experiment immediately
+            @param experiment_id: numerical identifier of experiment
+            @param arguments: optional bytearray of arguments for experiment
+        '''
+        # 'E' EXPID[2]
+        print(f"Requesting run of experiment {experiment_id}")
+        self.send_all(self.packet_gen.run_experiment_now_list(experiment_id, args))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+    
+    def status(self):
+        '''
+            status check of experiment 
+            Returns run time, state (completion) and partial results
+        '''
+        # b'S'
+        print("Requesting status")
+        self.send(self.packet_gen.status())
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    def experiment_current_results(self):
+        '''
+            experiment_current_results 
+            Gets immediate report from experiment that is either 
+            currently running, or last experiment run.
+        '''
+        print("Requesting experiment current res")
+        self.send(self.packet_gen.experiment_result())
+        self.wait(ResponseDelayMs)
+        self.print_response()
+    
+    def abort(self):
+        '''
+            abort -- request an experiment terminate immediately
+        '''
+        print("Requesting experiment abort")
+        self.send(self.packet_gen.abort())
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+        
+    def time_sync(self, time_value:int=None):
+        '''
+            time_sync
+            @param time_value: optional integer of current time to set
+        '''
+        # 'T' and 4 bytes of time
+        if time_value is None:
+            t_now = int(time.time() - self._start_time)
+        else:
+            t_now = time_value
+        print(f"Sending time sync {t_now}")
+        self.send(self.packet_gen.time_sync(t_now))
+    
+    
+    def reboot(self, safe_mode:bool=False):
+        '''
+            reboot 
+            Force a system reboot (stops feeding watchdog)
+        '''
+        # 'R' and one byte (safemode, unimplemented)
+        print(f"Sending reboot command")
+        self.send(self.packet_gen.reboot(safe_mode))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    
+    def mkdir(self, dirpath:str):
+        '''
+            mkdir Create a directory
+            @param directory_path: full path of directory
+            
+            Will create parents as needed.
+        ''' 
+        print(f"Sending req to make dir {dirpath}")
+        varid = 2 # could be anything
+        packets = self.packet_gen.setvar_list(varid, dirpath) # packets to set the filename variable
+        packets.append(self.packet_gen.mkdir(varid))
+        
+        self.send_all(packets)
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    def lsdir(self, dirpath:str):
+        '''
+            lsdir
+            @param directory_path: full path of directory
+            will return (possibly multiple responses) with contents 
+            of directory
+        '''
+        print(f"Sending ls on dir {dirpath}")
+        varid = 1
+        self.send_all(self.packet_gen.setvar_list(varid, dirpath))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        self.send(self.packet_gen.lsdir(varid))
+        self.wait(ResponseDelayMs * 2)
+        self.print_response()
+        
+    
+    def upload_file(self, srcfile:str, destpath:str, swap_name:str='/mytmp.txt'):
+        '''
+            upload_file
+            @param source: source file path (local)
+            @param destination: destination full file path (remote, on module)
+            @param swap_name: optional swap file (full path) to use for storage during upload
+            
+            Utility method that sets up the variables (slots), uploads the file to the 
+            temp file and then moves it to its destination on completion.
+            
+            @note: should be checking the size and checksum prior to rename/move
+        '''
+        infile = open(srcfile, 'rb')
+        
+        swapid = 1
+        destid = 2
+        
+        # setup our swap file name 
+        # and our destination file name
+        packets = self.packet_gen.setvar_list(swapid, swap_name)
+        packets.extend(self.packet_gen.setvar_list(destid, destpath))
+        
+        # open the swap file for writes
+        packets.append(self.packet_gen.open_write(swapid))
+        
+        # get all the data from input file (on this MCU)
+        # and create write packets, shoot those out as we go
+        # to not eat up a bunch of mem
+        bts = infile.read(16*6)
+        while len(bts):
+            new_packets = self.packet_gen.file_write_list(bts)
+            # print(f'New packets:\n{new_packets}')
+            packets.extend(new_packets)
+            
+            self.send_all(packets)
+            packets = []
+            
+            bts = infile.read(16*6)
+            
+        # close the file we just wrote... should check that it's
+        # size/checksum match but meh
+        packets.append(self.packet_gen.file_close())
+        
+        # TODO: we should interrupt this process and do a file check
+        # prior to moving it to destination
+        
+        # move the swap file to the destination file
+        packets.append(self.packet_gen.file_move(swapid, destid))
+        self.send_all(packets)
+        self.wait(ResponseDelayMs)
+        print(f"File uploaded to {destpath}.  Getting any pending data")
+        print(self.read_pending())
+        
+        print(f"Issuing request for size and checksum now")
+        self.send(self.packet_gen.filesize(destid))
+        self.send(self.packet_gen.checksum(destid))
+        
+        print(f"Gimme a sec")
+        self.wait(ResponseDelayMs * 5)
+        print(self.fetch_pending())
+        
+    
+    def check_file(self, filepath:str):
+        '''
+            check_file -- utility method to request size and checksum on a file.
+           @param filepath: the file in question  
+        '''
+        print(f"Sending req for size/checksum for {filepath}")
+        varid = 1 # could be anything
+        packets = self.packet_gen.setvar_list(varid, filepath) # packets to set the filename variable
+        
+        print("Doing setup...")
+        self.send_all(packets)
+        self.wait(ResponseDelayMs)
+        print(self.read_pending())
+        
+
+        self.send(self.packet_gen.filesize(varid))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        self.send(self.packet_gen.checksum(varid))
+        print("Getting checksum... give it a sec")
+        self.wait(ResponseDelayMs*4)
+        self.print_response()
+        
+    def file_move(self, srcpath:str, destpath:str):
+        '''
+            file_move -- move/rename a file
+            @param source: the (remote) full path of file
+            @param destination: the (remote) full path of the new name
+            
+            Destination directory must exist
+        '''
+        srcid = 1
+        destid = 2
+        
+        print(f"Move {srcpath} to {destpath}.  Setting up src")
+        self.send_all(self.packet_gen.setvar_list(srcid, srcpath))
+        
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+        print("Setting up dest")
+        self.send_all(self.packet_gen.setvar_list(destid, destpath))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        print("Issuing mv")
+        self.send(self.packet_gen.file_move(srcid, destid))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    
+        
+    def file_delete(self, fpath:str):
+        '''
+            file_delete -- unlink a file
+            @param filepath: full path of (remote) file to unlink.
+        ''' 
+        srcid = 1
+        print(f"Delete {fpath}.  Setting up...")
+        self.send_all(self.packet_gen.setvar_list(srcid, fpath))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        self.packet_gen.file_unlink(srcid)
+    
+    
+    def check_file_local(self, filepath:str):
+        '''
+            check_file_local
+            Check the size and calculate the same checksum as is 
+            done on the spasic module.
+        '''
+        sz = os.stat(filepath)[6]
+        
+        f = open(filepath, 'rb')
+        
+        csum = 0
+        v = f.read(4)
+        while len(v):
+            nval = int.from_bytes(v, 'little')
+            csum = csum ^ nval
+            v = f.read(4)
+            
+        f.close()
+            
+        print(f'Local file {filepath}:\n size: {sz}\n checksum: {hex(csum)}')
+        
+    
+        
     def read_pending(self):
         v = self.fetch_pending()
         if v == 'EMPTY':
             return v 
         
-        time.sleep(0.02)
+        self.wait(20)
         v2 = self.fetch_pending()
         if v2 == 'EMPTY':
             return v 
@@ -71,6 +327,50 @@ class SatelliteSimulator:
                 v.append(v2)
         else:
             return [v, v2]
+        
+        
+        
+        
+        
+        
+        
+    def wait(self, ms:int):
+        time.sleep_ms(int(ms))
+        
+    def print_response(self):
+        print(f'Response: {self.read_pending()}')
+        
+    def send(self, bts:bytearray):
+        '''
+            send raw bytes over to device
+        '''
+        try:
+            self._i2c.writeto(SlaveAddress, bts)
+        except Exception as e:
+            print(e)
+        self.wait(10)
+        
+    
+    def send_all(self, packets):
+        print("Send all", end='')
+        for p in packets:
+            self.send(p)
+            print('.', end='')
+            self.wait(1000*0.040) # give a sec to process
+        print()
+        
+        
+    def read_block(self):
+        '''
+            read a block of 16 bytes from device
+        '''
+        empty = bytearray([0x00] * 16)
+        try:
+            return self._i2c.readfrom(SlaveAddress, 16)
+        except Exception as e:
+            print(e)
+            return empty
+    
         
     def _parse_block(self, blk):
         if not len(blk):
@@ -100,7 +400,6 @@ class SatelliteSimulator:
                     errmsg = ''
                  
                 return ( f'ERROR "{error_to_string(errcode)}" [{errcode}] {errmsg}', blk[(4+errlen):] )
-        
         elif blk[0] == 0x07:
             # 0x07 RUNNING EXPERIMENTID EXCEPTIONID RUNTIME[4] RESULT[8]
             running = True if blk[1] else False
@@ -176,215 +475,70 @@ class SatelliteSimulator:
                     return rcvd[0] 
                 return rcvd
             
-            
-            (parsed_resp, left_overs) = self._parse_block(blk)
-            rcvd.append(parsed_resp)
-            while left_overs and len(left_overs):
-                (parsed_resp, left_overs) = self._parse_block(left_overs)
-                if parsed_resp is not None:
-                    rcvd.append(parsed_resp)
+            try:
+                (parsed_resp, left_overs) = self._parse_block(blk)
+                rcvd.append(parsed_resp)
+            except:
+                print(f"Issue parsing block (partial?) {blk}")
+                self.wait(35)
+                return rcvd
+            else:
+                while left_overs and len(left_overs):
+                        try:
+                            (parsed_resp, left_overs) = self._parse_block(left_overs)
+                        except:
+                            print(f"Issue parsing block (partial?) {left_overs}")
+                            self.wait(35)
+                            return rcvd
+                        if parsed_resp is not None:
+                            rcvd.append(parsed_resp)
+                
                 
             
-            time.sleep_ms(35)
+            self.wait(35)
                 
-        
-    def abort(self):
-        # b'A'
-        print("Requesting experiment abort")
-        self.send(self.packet_gen.abort())
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-        
-    def time_sync(self):
-        # 'T' and 4 bytes of time
-        t_now = time.time() - self._start_time
-        print(f"Sending time sync {t_now}")
-        self.send(self.packet_gen.time_sync(t_now))
-        
-    def status(self):
-        # b'S'
-        print("Requesting status")
-        self.send(self.packet_gen.status())
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-    def experiment_current_results(self):
-        print("Requesting experiment current res")
-        self.send(self.packet_gen.experiment_result())
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-        
-    def ping(self):
-        # 'P' and payload byte to get back in pong
-        self._ping_count += 1
-        print(f"Sending ping {self._ping_count}")
-        self.send(self.packet_gen.ping(self._ping_count))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-    def reboot(self, safe_mode:bool=False):
-        # 'R' and one byte (safemode, unimplemented)
-        print(f"Sending reboot command")
-        self.send(self.packet_gen.reboot(safe_mode))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-    def run_experiment_now(self, experiment_id:int, args:bytearray=None):
-        # 'E' EXPID[2]
-        print(f"Requesting run of experiment {experiment_id}")
-        self.send(self.packet_gen.run_experiment_now(experiment_id, args))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
     
+        
+class PacketConstructor(SatelliteSimulator):
+    
+    def __init__(self, dumpAscii:bool=True, prefix:str='PKT: '):
+        super().__init__(0, 0, 0) 
+        self.dump_ascii = dumpAscii
+        self.prefix = prefix
+    
+    def read_pending(self):
+        pass
+    
+    def read_block(self):
+        pass 
+    def fetch_pending(self):
+        pass 
+    
+    def wait(self, ms:int):
+        pass
+        
+    def print_response(self):
+        pass 
+    def send(self, bts:bytearray):
+        '''
+            send raw bytes over to device
+        '''
+        hexbts = bytearray(bts)
+        if len(hexbts) < 8:
+            hexbts.extend(bytearray(8 - len(hexbts)))
+        
+        hex_str = ','.join(map(lambda x: hex(x) if x>15 else f' {hex(x)}', hexbts))
+        if not self.dump_ascii:
+            print(f'{self.prefix}{hex_str}')
+            return 
+        spacers = ' '*(50 - len(hex_str))
+        mix_str = ' '.join(map(lambda x: f'{x:x}' if x < 0x20 or x > 0x7E else f' {chr(x)}', bts ))
+        print(f'{self.prefix}{hex_str}{spacers}{mix_str}')
     
     def send_all(self, packets):
-        print("Send all", end='')
         for p in packets:
             self.send(p)
-            print('.', end='')
-            time.sleep(0.040) # give a sec to process
-        print()
-    def check_file(self, filepath:str):
-        print(f"Sending req for size/checksum for {filepath}")
-        varid = 1 # could be anything
-        packets = self.packet_gen.setvar_list(varid, filepath) # packets to set the filename variable
-        
-        print("Doing setup...")
-        self.send_all(packets)
-        time.sleep(ResponseDelaySeconds)
-        print(self.read_pending())
-        
-
-        self.send(self.packet_gen.filesize(varid))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        self.send(self.packet_gen.checksum(varid))
-        print("Getting checksum... give it a sec")
-        time.sleep(ResponseDelaySeconds*4)
-        print(f'Response: {self.read_pending()}')
-        
-    def check_file_local(self, filepath:str):
-        
-        sz = os.stat(filepath)[6]
-        
-        f = open(filepath, 'rb')
-        
-        csum = 0
-        v = f.read(4)
-        while len(v):
-            nval = int.from_bytes(v, 'little')
-            csum = csum ^ nval
-            v = f.read(4)
-            
-        f.close()
-            
-        print(f'Local file {filepath}:\n size: {sz}\n checksum: {hex(csum)}')
-        
-        
-    def mkdir(self, dirpath:str):
-        print(f"Sending req to make dir {dirpath}")
-        varid = 2 # could be anything
-        packets = self.packet_gen.setvar_list(varid, dirpath) # packets to set the filename variable
-        packets.append(self.packet_gen.mkdir(varid))
-        
-        self.send_all(packets)
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-    def lsdir(self, dirpath:str):
-        print(f"Sending ls on dir {dirpath}")
-        varid = 1
-        self.send_all(self.packet_gen.setvar_list(varid, dirpath))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        self.send(self.packet_gen.lsdir(varid))
-        time.sleep(ResponseDelaySeconds * 2)
-        print(f'Response: {self.read_pending()}')
-        
-        
-        
-        
-    def file_delete(self, fpath:str):
-        srcid = 1
-        print(f"Delete {fpath}.  Setting up...")
-        self.send_all(self.packet_gen.setvar_list(srcid, fpath))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        self.packet_gen.file_unlink(srcid)
-        
-    def file_move(self, srcpath:str, destpath:str):
-        srcid = 1
-        destid = 2
-        
-        print(f"Move {srcpath} to {destpath}.  Setting up src")
-        self.send_all(self.packet_gen.setvar_list(srcid, srcpath))
-        
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-        print("Setting up dest")
-        self.send_all(self.packet_gen.setvar_list(destid, destpath))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        print("Issuing mv")
-        self.send(self.packet_gen.file_move(srcid, destid))
-        time.sleep(ResponseDelaySeconds)
-        print(f'Response: {self.read_pending()}')
-        
-    def upload_file(self, srcfile:str, destpath:str, swap_name:str='/mytmp.txt'):
-        
-        
-        infile = open(srcfile, 'rb')
-        
-        swapid = 1
-        destid = 2
-        
-        # setup our swap file name 
-        # and our destination file name
-        packets = self.packet_gen.setvar_list(swapid, swap_name)
-        packets.extend(self.packet_gen.setvar_list(destid, destpath))
-        
-        # open the swap file for writes
-        packets.append(self.packet_gen.open_write(swapid))
-        
-        # get all the data from input file (on this MCU)
-        # and create write packets, shoot those out as we go
-        # to not eat up a bunch of mem
-        bts = infile.read(16*6)
-        while len(bts):
-            new_packets = self.packet_gen.file_write_list(bts)
-            print(f'New packets:\n{new_packets}')
-            packets.extend(new_packets)
-            
-            self.send_all(packets)
-            packets = []
-            
-            bts = infile.read(16*6)
-            
-        # close the file we just wrote... should check that it's
-        # size/checksum match but meh
-        packets.append(self.packet_gen.file_close())
-        
-        # move the swap file to the destination file
-        packets.append(self.packet_gen.file_move(swapid, destid))
-        self.send_all(packets)
-        time.sleep(ResponseDelaySeconds)
-        print(f"File uploaded to {destpath}.  Getting any pending data")
-        print(self.read_pending())
-        
-        print(f"Issuing request for size and checksum now")
-        self.send(self.packet_gen.filesize(destid))
-        self.send(self.packet_gen.checksum(destid))
-        
-        print(f"Gimme a sec")
-        time.sleep(ResponseDelaySeconds * 5)
-        print(self.fetch_pending())
-        
-        
-        
+    
         
 
         
@@ -464,5 +618,8 @@ def stressTest():
         sim.ping()
         sim.experiment_current_results()
         
-sim = SatelliteSimulator()
+if MachineAvailable:
+    sim = SatelliteSimulator()
+    
+packetdump = PacketConstructor()
     

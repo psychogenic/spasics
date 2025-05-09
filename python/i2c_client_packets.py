@@ -44,12 +44,19 @@ class ClientPacketGenerator:
     def experiment_result(self):
         return bytearray([ord('E') + ord('I')])
         
-    def run_experiment_now(self, experiment_id:int, args:bytearray=None):
+    def run_experiment_now_list(self, experiment_id:int, args:bytearray=None):
+        
+        ret_list = []
+        if args is not None and len(args):
+            for chunk in [args[i:i + 7] for i in range(0, len(args), 7)]:
+                bts = bytearray([ord('E') + ord('A')])
+                bts.extend(chunk)
+                ret_list.append(bts)
+        
         bts = bytearray([ord('E')])
         bts += experiment_id.to_bytes(2, 'little')
-        if args:
-            bts += args
-        return bts
+        ret_list.append(bts)
+        return ret_list
     
     def filesize(self, varid:int):
             return bytearray([ord('F'), ord('S'), varid])
@@ -94,25 +101,22 @@ class ClientPacketGenerator:
         return bytearray([ord('V'), v])
     
     def setvar_list(self, v:int, val):
-        if len(val) < 6:
-            bts = bytearray([ord('V') + ord('S'), v])
-            bts += val
-            return [bts]
+        if isinstance(val, str):
+            val = bytearray(val, 'ascii')
         
-        bts = bytearray([ord('V') + ord('S'), v])
-        bts += val[0:7]
-        ret_list = [bts]
-        i = 6
-        while i < len(val):
-            end = i + 6
-            if end > len(val):
-                end = len(val)
-            
-            bts = bytearray([ord('V') + ord('A'), v])
-            bts += val[i:(end+1)]
-            ret_list.append(bts)
-            
-            i += 6
+        chunks = [val[i:i + 6] for i in range(0, len(val), 6)]
+        
+        setvar = bytearray([ord('V') + ord('S'), v])
+        setvar.extend(chunks[0])
+        
+        ret_list = [setvar]
+        if len(chunks) == 1:
+            return ret_list
+        
+        for i in range(1, len(chunks)):
+            appvar = [ord('V') + ord('A'), v]
+            appvar.extend(chunks[i])
+            ret_list.append(appvar)
             
         return ret_list
             
