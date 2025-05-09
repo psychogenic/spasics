@@ -38,6 +38,10 @@ class ClientPacketGenerator:
         bts += extra_payload
         return bts
     
+    def info(self):
+        return bytearray([ord('I')])
+    
+    
     def reboot(self, safe_mode:bool=False):
         return bytearray([ord('R'), 1 if safe_mode else 0])
 

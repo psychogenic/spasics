@@ -26,6 +26,28 @@ def error_to_string(error_code:int):
     
     return 'UNKNOWN ERROR'
 
+class ExpResultCache:
+    def __init__(self):
+        self.id = 0
+        self.result = bytearray()
+        self.running = 0
+        self.exception = 0
+        
+    def reset(self):
+        self.id = 0
+        self.result = bytearray()
+        self.running = 0
+        self.exception = 0
+        
+    def __str__(self):
+        run_str = 'running'
+        if not self.running:
+            run_str = 'NOT running'
+        ex_str = ''
+        if self.exception:
+            ex_str = f' EXCEPT {self.exception}'
+        return f'ID: {self.id} {run_str}{ex_str}: {self.result}'
+
 class SatelliteSimulator:
     '''
         Talks to spasics satellite board over I2C
@@ -33,13 +55,19 @@ class SatelliteSimulator:
         data coming back.
     '''
     #def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
-    def __init__(self, scl:int=23, sda:int=22, baudrate:int=100000):
+    def __init__(self, scl:int=23, sda:int=22, baudrate:int=100000, run_quiet:bool=False):
         self._i2c = None
         if baudrate != 0:
             self._i2c = machine.I2C(1, scl=scl, sda=sda, freq=baudrate)
         self._start_time = time.time()
         self._ping_count = 0
         self.packet_gen = ClientPacketGenerator()
+        self.exp_result = ExpResultCache()
+        self.run_quiet = run_quiet
+        
+    def output_msg(self, msg, force:bool=False):
+        if force or not self.run_quiet:
+            print(msg)
         
     
     def ping(self, cnt:int=None):
@@ -51,8 +79,13 @@ class SatelliteSimulator:
         if cnt is None:
             self._ping_count += 1
             cnt = self._ping_count
-        print(f"Sending ping {cnt}")
+        self.output_msg(f"Sending ping {cnt}")
         self.send(self.packet_gen.ping(cnt))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    def info(self):
+        self.send(self.packet_gen.info())
         self.wait(ResponseDelayMs)
         self.print_response()
         
@@ -64,7 +97,8 @@ class SatelliteSimulator:
             @param arguments: optional bytearray of arguments for experiment
         '''
         # 'E' EXPID[2]
-        print(f"Requesting run of experiment {experiment_id}")
+        self.output_msg(f"Requesting run of experiment {experiment_id}")
+        self.exp_result.reset()
         self.send_all(self.packet_gen.run_experiment_now_list(experiment_id, args))
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -75,7 +109,7 @@ class SatelliteSimulator:
             Returns run time, state (completion) and partial results
         '''
         # b'S'
-        print("Requesting status")
+        self.output_msg("Requesting status")
         self.send(self.packet_gen.status())
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -86,7 +120,7 @@ class SatelliteSimulator:
             Gets immediate report from experiment that is either 
             currently running, or last experiment run.
         '''
-        print("Requesting experiment current res")
+        self.output_msg("Requesting experiment current res")
         self.send(self.packet_gen.experiment_result())
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -95,7 +129,7 @@ class SatelliteSimulator:
         '''
             abort -- request an experiment terminate immediately
         '''
-        print("Requesting experiment abort")
+        self.output_msg("Requesting experiment abort")
         self.send(self.packet_gen.abort())
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -111,7 +145,7 @@ class SatelliteSimulator:
             t_now = int(time.time() - self._start_time)
         else:
             t_now = time_value
-        print(f"Sending time sync {t_now}")
+        self.output_msg(f"Sending time sync {t_now}")
         self.send(self.packet_gen.time_sync(t_now))
     
     
@@ -121,7 +155,7 @@ class SatelliteSimulator:
             Force a system reboot (stops feeding watchdog)
         '''
         # 'R' and one byte (safemode, unimplemented)
-        print(f"Sending reboot command")
+        self.output_msg(f"Sending reboot command")
         self.send(self.packet_gen.reboot(safe_mode))
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -134,7 +168,7 @@ class SatelliteSimulator:
             
             Will create parents as needed.
         ''' 
-        print(f"Sending req to make dir {dirpath}")
+        self.output_msg(f"Sending req to make dir {dirpath}")
         varid = 2 # could be anything
         packets = self.packet_gen.setvar_list(varid, dirpath) # packets to set the filename variable
         packets.append(self.packet_gen.mkdir(varid))
@@ -150,7 +184,7 @@ class SatelliteSimulator:
             will return (possibly multiple responses) with contents 
             of directory
         '''
-        print(f"Sending ls on dir {dirpath}")
+        self.output_msg(f"Sending ls on dir {dirpath}")
         varid = 1
         self.send_all(self.packet_gen.setvar_list(varid, dirpath))
         self.wait(ResponseDelayMs)
@@ -191,7 +225,7 @@ class SatelliteSimulator:
         bts = infile.read(16*6)
         while len(bts):
             new_packets = self.packet_gen.file_write_list(bts)
-            # print(f'New packets:\n{new_packets}')
+            # self.output_msg(f'New packets:\n{new_packets}')
             packets.extend(new_packets)
             
             self.send_all(packets)
@@ -210,16 +244,16 @@ class SatelliteSimulator:
         packets.append(self.packet_gen.file_move(swapid, destid))
         self.send_all(packets)
         self.wait(ResponseDelayMs)
-        print(f"File uploaded to {destpath}.  Getting any pending data")
-        print(self.read_pending())
+        self.output_msg(f"File uploaded to {destpath}.  Getting any pending data")
+        self.output_msg(self.read_pending())
         
-        print(f"Issuing request for size and checksum now")
+        self.output_msg(f"Issuing request for size and checksum now")
         self.send(self.packet_gen.filesize(destid))
         self.send(self.packet_gen.checksum(destid))
         
-        print(f"Gimme a sec")
+        self.output_msg(f"Gimme a sec")
         self.wait(ResponseDelayMs * 5)
-        print(self.fetch_pending())
+        self.output_msg(self.fetch_pending())
         
     
     def check_file(self, filepath:str):
@@ -227,21 +261,21 @@ class SatelliteSimulator:
             check_file -- utility method to request size and checksum on a file.
            @param filepath: the file in question  
         '''
-        print(f"Sending req for size/checksum for {filepath}")
+        self.output_msg(f"Sending req for size/checksum for {filepath}")
         varid = 1 # could be anything
         packets = self.packet_gen.setvar_list(varid, filepath) # packets to set the filename variable
         
-        print("Doing setup...")
+        self.output_msg("Doing setup...")
         self.send_all(packets)
         self.wait(ResponseDelayMs)
-        print(self.read_pending())
+        self.output_msg(self.read_pending())
         
 
         self.send(self.packet_gen.filesize(varid))
         self.wait(ResponseDelayMs)
         self.print_response()
         self.send(self.packet_gen.checksum(varid))
-        print("Getting checksum... give it a sec")
+        self.output_msg("Getting checksum... give it a sec")
         self.wait(ResponseDelayMs*4)
         self.print_response()
         
@@ -256,17 +290,17 @@ class SatelliteSimulator:
         srcid = 1
         destid = 2
         
-        print(f"Move {srcpath} to {destpath}.  Setting up src")
+        self.output_msg(f"Move {srcpath} to {destpath}.  Setting up src")
         self.send_all(self.packet_gen.setvar_list(srcid, srcpath))
         
         self.wait(ResponseDelayMs)
         self.print_response()
         
-        print("Setting up dest")
+        self.output_msg("Setting up dest")
         self.send_all(self.packet_gen.setvar_list(destid, destpath))
         self.wait(ResponseDelayMs)
         self.print_response()
-        print("Issuing mv")
+        self.output_msg("Issuing mv")
         self.send(self.packet_gen.file_move(srcid, destid))
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -279,20 +313,20 @@ class SatelliteSimulator:
             @param filepath: full path of (remote) file to unlink.
         ''' 
         srcid = 1
-        print(f"Delete {fpath}.  Setting up...")
+        self.output_msg(f"Delete {fpath}.  Setting up...")
         self.send_all(self.packet_gen.setvar_list(srcid, fpath))
         self.wait(ResponseDelayMs)
         self.print_response()
         self.send(self.packet_gen.file_unlink(srcid))
         
     def variable_get(self, v:int):
-        print(f"Get variable {v}")
+        self.output_msg(f"Get variable {v}")
         self.send(self.packet_gen.getvar(v))
         self.wait(ResponseDelayMs)
         self.print_response()
         
     def variable_set(self, v:int, value:str):
-        print(f"Set variable {v} to '{value}'")
+        self.output_msg(f"Set variable {v} to '{value}'")
         self.send_all(self.packet_gen.setvar_list(v, value))
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -351,7 +385,34 @@ class SatelliteSimulator:
         time.sleep_ms(int(ms))
         
     def print_response(self):
-        print(f'Response: {self.read_pending()}')
+        self.output_msg(f'Response: {self.read_pending()}')
+        
+    def monitor_experiment(self, update_freq_ms:int=500):
+        
+        self.experiment_current_results()
+        self.wait(ResponseDelayMs)
+        self.read_pending()
+        if not self.exp_result.running:
+            print(f"Experiment not running {self.exp_result}")
+        
+        print(f"UPDATE {self.exp_result}")
+        rq = self.run_quiet
+        self.run_quiet = True
+        cur_res = self.exp_result.result
+        while self.exp_result.running:
+            self.experiment_current_results()
+            self.wait(ResponseDelayMs)
+            self.read_pending()
+            
+            if cur_res != self.exp_result.result:
+                cur_res = self.exp_result.result
+                print(f"UPDATE {self.exp_result}")
+                
+            time.sleep(update_freq_ms/1000)
+            
+        self.run_quiet = rq
+        print(f"EXP done: {self.exp_result}")
+            
         
     def send(self, bts:bytearray):
         '''
@@ -366,10 +427,12 @@ class SatelliteSimulator:
         
     
     def send_all(self, packets):
-        print("Send all", end='')
+        if not self.run_quiet:
+            print("Send all", end='')
         for p in packets:
             self.send(p)
-            print('.', end='')
+            if not self.run_quiet:
+                print('.', end='')
             self.wait(40) # give a sec to process
         print()
         
@@ -425,6 +488,10 @@ class SatelliteSimulator:
                 exstr = f'Exception: {exception_id}'
             else:
                 exstr = 'OK'
+            self.exp_result.running = running 
+            self.exp_result.id = expid
+            self.exp_result.exception =  exception_id
+            self.exp_result.result = res
             return ( f'Status running:{running} exp {expid} {exstr} {runtime}s: {res}', b'')
         
             
@@ -448,9 +515,32 @@ class SatelliteSimulator:
                 else:
                     end_status = 'RUNNING/INCOMPLETED'
                 
-                
-            return ( f'EXPERIMENT {expid}: {end_status} {resmsg}', blk[(5+reslen):] )
             
+            self.exp_result.running = False if completed else True 
+            self.exp_result.id = expid
+            self.exp_result.exception =  except_id
+            self.exp_result.result = resmsg
+            
+            return ( f'EXPERIMENT {expid}: {end_status} {resmsg}', blk[(5+reslen):] )
+        
+        elif blk[0] == ord('I'):
+            # info packet
+            payload = blk[1:]
+            v_maj = 0
+            v_min = 0
+            v_patch = 0
+            t_now = 0
+            t_sync = 0
+            if len(payload) < 3+8:
+                return (f'INFO -- malformed: {blk}', b'')
+        
+            v_patch = payload[0]
+            v_min = payload[1]
+            v_maj = payload[2]
+            t_now = int.from_bytes(payload[3:7], 'little')
+            t_sync = int.from_bytes(payload[7:11], 'little')
+            return (f'INFO v{v_maj}.{v_min}.{v_patch} now:{t_now} sync:{t_sync}', payload[11:])
+        
         elif blk[0] == ord('F'):
             val = 0
             if len(blk) >= 7:
