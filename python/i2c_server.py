@@ -91,6 +91,8 @@ def process_pending_data():
             print("Run")
                 
             if i2cglb.ERes.running:
+                # cancel all args in swap
+                i2cglb.ExpArgs.clear_swap()
                 queue_response(rsp.ResponseError(error_codes.Busy, 
                                                       i2cglb.ERes.expid.to_bytes(2, 'little')))
                 return 
@@ -100,19 +102,27 @@ def process_pending_data():
                 exp_id = int.from_bytes(payload[:2], 'little')
                 if len(payload) > 2:
                     exp_argument_bytes = payload[2:]
-                    if len(exp_argument_bytes) < 10:
-                        exp_argument_bytes += bytearray(10 - len(exp_argument_bytes))
+                    i2cglb.ExpArgs.argument_swap += exp_argument_bytes
             else:
                 exp_id = 0
                 
             if exp_id not in ExperimentsAvailable:
+                i2cglb.ExpArgs.clear_swap()
                 queue_response(rsp.ResponseError(error_codes.UnknownExperiment, bytearray([exp_id])))
                 return 
-            
+            arglen = len(i2cglb.ExpArgs.argument_swap)
+            if  arglen < 10:
+                i2cglb.ExpArgs.argument_swap += bytearray(10 - arglen)
+                
             
             i2cglb.ERes.expid = exp_id
             i2cglb.ERes.start()
-            i2cglb.ExpArgs.start(exp_argument_bytes)
+            i2cglb.ExpArgs.start(i2cglb.ExpArgs.argument_swap)
+            
+            print(f"exp args for run {i2cglb.ExpArgs.argument_bytes}")
+            
+            # clear swap
+            i2cglb.ExpArgs.clear_swap()
             i2cglb.ExperimentRun = True
             
             respmsg = b'EXP'
@@ -135,7 +145,16 @@ def process_pending_data():
                 responseObj = rsp.ResponseError(error_codes.UnterminatedCore1Experiment, b'CORBZY')
                 
             queue_response(responseObj)
-            
+        elif typebyte == ord('E') + ord('A'):
+            # experiment args
+            print("exparg")
+            if not len(i2cglb.ExpArgs.argument_swap):
+                i2cglb.ExpArgs.argument_swap = payload 
+            else:
+                i2cglb.ExpArgs.argument_swap += payload 
+                
+            print(f"Parms now {i2cglb.ExpArgs.argument_swap}")
+                
         elif typebyte == ord('E') + ord('I'):
             # experiment immediate result
             print("expimm")
