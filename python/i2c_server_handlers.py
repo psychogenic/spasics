@@ -4,7 +4,7 @@
 '''
 import time
 import i2c_server_globals as i2cglb
-
+import spasic.ver as ver
 import spasic.cnc.response.response as rsp
 import spasic.error_codes as error_codes
 
@@ -174,3 +174,9 @@ def time_sync(payload:bytearray):
     if len(payload) >= 4:
         i2cglb.LastTimeSyncValue = int.from_bytes(payload, 'little')
         print(f"time {i2cglb.LastTimeSyncValue}")
+        
+def info():
+    t_now = int(time.time())
+    t_sync = i2cglb.sync_time_now(t_now)
+    queue_response(rsp.ResponseInfo(ver.major, ver.minor, ver.patch, t_now, t_sync))
+    

@@ -1,3 +1,4 @@
+import time
 from spasic.fs.filesystem import FSAccess
 from spasic.variables.variables import Variables
 from spasic.experiment.experiment_result import ExpResult
@@ -14,3 +15,13 @@ PendingDataOut = []
 ExperimentRun = False
 LastTimeSyncMessageTime = -1
 LastTimeSyncValue = 0
+
+def sync_time_now(t_now:int=None):
+    if t_now is None:
+        t_now = int(time.time())
+        
+    if LastTimeSyncMessageTime > 0:
+        t_sync = LastTimeSyncValue + (t_now - LastTimeSyncMessageTime)
+    else:
+        t_sync = 0xefbeadde
+    return t_sync

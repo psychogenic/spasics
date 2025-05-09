@@ -2,7 +2,6 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
-
 import time
 import micropython
 import machine
@@ -11,7 +10,6 @@ from ttboard.demoboard import DemoBoard # keep this
 import i2c_server_globals as i2cglb
 import spasic.cnc.response.response as rsp
 import spasic.settings as sts
-
 
 if sts.DebugUseSimulatedI2CDevice:
     from spasic.i2c.device_sim import I2CDevice
@@ -54,9 +52,7 @@ def out_queue_length():
     return len(i2cglb.PendingDataOut)
     
 def get_and_flush_pending_in():
-    # machine.disable_irq()
     if not i2cglb.PendingDataNum:
-        # machine.enable_irq()
         return []
     
     # race condition ?
@@ -67,9 +63,7 @@ def get_and_flush_pending_in():
     data_rcvd = []
     for i in range(num_msg):
         bts = data_rcvd_with_len[i]
-        # print(f'{bts} {bts[0]}')
         data_rcvd.append(bts[1:bts[0]+1])
-    #machine.enable_irq()
     return data_rcvd 
 
 def process_pending_data():
@@ -120,7 +114,7 @@ def process_pending_data():
             i2cglb.ERes.start()
             i2cglb.ExpArgs.start(i2cglb.ExpArgs.argument_swap)
             
-            print(f"exp args for run {i2cglb.ExpArgs.argument_bytes}")
+            # print(f"exp args for run {i2cglb.ExpArgs.argument_bytes}")
             
             # clear swap
             i2cglb.ExpArgs.clear_swap()
@@ -148,17 +142,17 @@ def process_pending_data():
             queue_response(responseObj)
         elif typebyte == ord('E') + ord('A'):
             # experiment args
-            print("exparg")
+            print("ExpArg")
             if not len(i2cglb.ExpArgs.argument_swap):
                 i2cglb.ExpArgs.argument_swap = payload 
             else:
                 i2cglb.ExpArgs.argument_swap += payload 
                 
-            print(f"Parms now {i2cglb.ExpArgs.argument_swap}")
+            # print(f"Parms now {i2cglb.ExpArgs.argument_swap}")
                 
         elif typebyte == ord('E') + ord('I'):
             # experiment immediate result
-            print("expimm")
+            print("ExpImm")
             res = i2cglb.ERes
             if not res.expid:
                 queue_response(rsp.ResponseError(error_codes.UnknownExperiment, b'NOXP'))
@@ -186,6 +180,8 @@ def process_pending_data():
             
         elif typebyte == ord('F') + ord('W'):
             handlers.fs_file_write(payload)
+        elif typebyte == ord('I'):
+            handlers.info()
         elif typebyte == ord('P'):
             print("Ping")
             queue_response(rsp.ResponseOKMessage(payload))
@@ -204,15 +200,15 @@ def process_pending_data():
             print("Clock")
             handlers.time_sync(payload)
         elif typebyte == ord('V'):
-            print("Get variable")
+            print("Var get")
             handlers.variable_get(payload)
         
         elif typebyte == ord('V') + ord('S'):
-            print("Set variable")
+            print("Var set")
             handlers.variable_set(payload)
             
         elif typebyte == ord('V') + ord('A'):
-            print("Append variable")
+            print("Var app")
             handlers.variable_append(payload)
 
 _I2CDevSingleton = None
@@ -226,7 +222,7 @@ def get_i2c_device():
     return _I2CDevSingleton
 
 
-def POST(numiterations:int=3):
+def POST(numiterations:int=2):
     print("\n\nPerforming POST!\n")
     arg_bytes = bytearray([numiterations, 0, 0])
     status = debug_launch_experiment(1, arg_bytes)
@@ -264,8 +260,10 @@ def POST(numiterations:int=3):
         else:
             queue_response(rsp.ResponseOKMessage(b'POST'))
             
-        
-        print(f"Total failures: {num_fails}")
+        if num_fails:
+            print(f"\nPOST FAILURES: {num_fails}\n")
+        else:
+            print(f"\nTotal failures: 0\n POST OK!")
         
 def begin():
     micropython.mem_info()
@@ -308,7 +306,6 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     i2cglb.ERes.start()
     i2cglb.ExpArgs.start(exp_argument_bytes)
     
-
     # always ensure we start fresh in ASIC_RP_CONTROL mode,
     # just in case an experiment messed with it.
     DemoBoard.get().mode = RPMode.ASIC_RP_CONTROL
@@ -410,10 +407,3 @@ def main_loop(runtimes:int=0):
                 queue_response(rsp.ResponseError(error_codes.RuntimeExceptionCaught, ex_type_bts))
                 if sts.DebugUseSimulatedI2CDevice or sts.RaiseAndBreakMainOnException:
                     raise e
-
-
-    
-
-
-
-

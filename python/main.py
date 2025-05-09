@@ -2,7 +2,6 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
-
 import gc
 DefaultGCThreshold = gc.threshold()
 gc.threshold(4096)
@@ -11,6 +10,7 @@ import _thread
 import time 
 import i2c_server 
 import spasic.settings as sts
+import spasic.ver as ver
 from spasic.util.watchdog import enable_watchdog
 from ttboard.demoboard import DemoBoard
 
@@ -20,7 +20,6 @@ gc.threshold(DefaultGCThreshold)
 
 ### 
 ### System-wide settings and setup
-
 # thread stack size
 if sts.ThreadStackSize:
     print(f"Setting thread stack to {sts.ThreadStackSize}")
@@ -39,20 +38,16 @@ if sts.StartupDelaySeconds:
         print(f'Waiting {sts.StartupDelaySeconds}s to start...')
         time.sleep(sts.StartupDelaySeconds)
 
-
-
-print(f"Start-up!  Launching server... (debug: {Debug})")
+print(f"Start-up v{ver.major}.{ver.minor}.{ver.patch}! Launching server... (debug: {Debug})")
 if not Debug:
-    
-    # startup i2c services
+    # realdeal, startup i2c services
     i2c_server.begin()
     
     if sts.PerformPOSTTest:
         print("Performing POST")
         i2c_server.POST()
      
-    i2c_server.main_loop()
-        
+    i2c_server.main_loop()  
 else:
     print("DEBUG mode -- TESTING ASIC/wiring")
     # test experiment uses
