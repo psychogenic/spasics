@@ -6,6 +6,7 @@ Created on May 7, 2025
 '''
 
 import time
+import random
 from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
 
@@ -19,13 +20,16 @@ def contributors(params:ExperimentParameters, response:ExpResult):
             b'Tamas H.',
             b'Stuart Childs',
             b'Claire Elliot',
-            b'Florian S.'
+            b'Florian S.',
+            b'Troyburn',
+            b'Mike Bell',
+            b'Ken Pettit'
         ]
     
     for p in people:
         response.result = bytearray(p)
-        for _i in range(10):
-            time.sleep_ms(100)
+        for _i in range(200):
+            time.sleep_ms(10)
             if not params.keep_running:
                 return 
             
