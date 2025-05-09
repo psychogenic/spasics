@@ -10,7 +10,7 @@ import spasic.experiment.tt_um_factory_test.loader
 import spasic.experiment.tt_um_fstolzcode.loader
 import spasic.experiment.tt_contributors.loader
 import spasic.experiment.tt_um_oscillating_bones.loader
-
+import spasic.experiment.tt_um_qubitbytes_alive.loader
 ExperimentsAvailable = {
     
         # 1 sample experiment
@@ -20,6 +20,7 @@ ExperimentsAvailable = {
         
         3: spasic.experiment.tt_um_oscillating_bones.loader.run_experiment,
         
+        4: spasic.experiment.tt_um_qubitbytes_alive.loader.run_experiment,
         
         0x80: spasic.experiment.tt_contributors.loader.thank_contribs,
         
