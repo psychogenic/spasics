@@ -87,6 +87,7 @@ PKT: 0x50,0x42,0x50,0x4e,0x47, 0x0, 0x0, 0x0            P  B  P  N  G
 Responds with an acknowledgement "pong" packet, containing the original counter byte and payload.
 
 
+
 ### Run Experiment (Immediate)
 
 Running experiments is why we're up there.
@@ -222,6 +223,7 @@ Reboots the system (by starving the watchdog, for a hard hard reset).
 
 ```
 'R'
+0x82
 ```
 
 Sample
@@ -233,6 +235,19 @@ PKT: 0x52, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0            R 0
 ```
 
 Responds with OK.
+
+
+### Info
+
+Version and time information is return with 
+
+
+```
+'I'
+0x49
+```
+
+Responds with a Info packet including version, system time and sync time.
 
 
 ## Filesystem Management
