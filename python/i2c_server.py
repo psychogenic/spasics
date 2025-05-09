@@ -136,6 +136,18 @@ def process_pending_data():
                 
             queue_response(responseObj)
             
+        elif typebyte == ord('E') + ord('I'):
+            # experiment immediate result
+            print("expimm")
+            res = i2cglb.ERes
+            if not res.expid:
+                queue_response(rsp.ResponseError(error_codes.UnknownExperiment, b'NOXP'))
+                return 
+            
+            queue_response(rsp.ResponseExperiment(res.expid, res.completed, 
+                                                  res.exception_type_id, 
+                                                  res.result))
+            
         elif typebyte == ord('F'):
             # b'FS' VARID -- read size
             # b'FZ' VARID -- read checksum
