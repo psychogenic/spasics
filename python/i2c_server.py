@@ -85,6 +85,7 @@ def process_pending_data():
         payload = bts[1:]
         if typebyte == ord('A'):
             print("Abort")
+            i2cglb.ExpArgs.clear_swap()
             handlers.abort()
                 
         elif typebyte == ord('E'):
