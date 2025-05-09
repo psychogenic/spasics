@@ -1,6 +1,59 @@
 '''
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
+
+Sattelite simulator -- sends command packets and interprets results.
+
+There are a bunch of utility methods, like
+  sim.ping()
+  sim.info()
+  sim.status()
+  
+More interesting may be launching and monitoring experiments.  
+You can do it all "manual" style, but there's a nifty
+
+  launch_and_monitor(self, 
+        experiment_id:int, 
+        args:bytearray=None, 
+        interpreter=None, 
+        update_freq_ms:int=500)
+        
+That lets you start up experiments and monitor changes to the
+reported results, including an optional "interpreter" (callable)
+that can parse the bytes and make sense of them.
+
+An example is included in here, to interpret bytes from the 
+oscillating bones experiment (#3), which gives results like:
+
+>>> sim.launch_and_monitor(3, interpreter=osc_bones_interpret)
+
+Launching experiment, and monitoring
+Requesting run of experiment 3
+Send all.
+Response: OK: b'EXP\x03\x00'
+Requesting experiment current res
+Response: EXPERIMENT 3: RUNNING/INCOMPLETED b'\x00\x00\x00\x00'
+UPDATE ID: 3 running: Loop 0 avg 0
+UPDATE ID: 3 running: Loop 1 avg 337354
+UPDATE ID: 3 running: Loop 2 avg 674718
+UPDATE ID: 3 running: Loop 3 avg 1012063
+UPDATE ID: 3 running: Loop 4 avg 1349418
+UPDATE ID: 3 running: Loop 5 avg 1686785
+UPDATE ID: 3 running: Loop 6 avg 2024154
+UPDATE ID: 3 running: Loop 7 avg 2361522
+UPDATE ID: 3 running: Loop 8 avg 2698896
+UPDATE ID: 3 running: Loop 10 avg 3373640
+UPDATE ID: 3 running: Loop 11 avg 3711011
+UPDATE ID: 3 running: Loop 12 avg 4048386
+UPDATE ID: 3 running: Loop 13 avg 4385770
+UPDATE ID: 3 running: Loop 14 avg 4723148
+UPDATE ID: 3 running: Loop 15 avg 5060522
+UPDATE ID: 3 running: Loop 16 avg 5397889
+UPDATE ID: 3 running: Loop 17 avg 5397902
+UPDATE ID: 3 running: Loop 18 avg 5397910
+
+
+
 '''
 
 import time 
@@ -32,12 +85,14 @@ class ExpResultCache:
         self.result = bytearray()
         self.running = 0
         self.exception = 0
+        self.interpreter = None
         
     def reset(self):
         self.id = 0
         self.result = bytearray()
         self.running = 0
         self.exception = 0
+        self.interpreter = None
         
     def __str__(self):
         run_str = 'running'
@@ -46,7 +101,15 @@ class ExpResultCache:
         ex_str = ''
         if self.exception:
             ex_str = f' EXCEPT {self.exception}'
-        return f'ID: {self.id} {run_str}{ex_str}: {self.result}'
+            
+        if self.interpreter is not None:
+            try:
+                res = self.interpreter(self.result)
+            except:
+                res = self.result 
+        else:
+            res = self.result
+        return f'ID: {self.id} {run_str}{ex_str}: {res}'
 
 class SatelliteSimulator:
     '''
@@ -84,7 +147,17 @@ class SatelliteSimulator:
         self.wait(ResponseDelayMs)
         self.print_response()
         
+    def launch_and_monitor(self, experiment_id:int, args:bytearray=None, interpreter=None, update_freq_ms:int=500):
+        self.output_msg("Launching experiment, and monitoring")
+        self.run_experiment_now(experiment_id, args)
+        self.wait(ResponseDelayMs)
+        self.monitor_experiment(update_freq_ms,result_interpreted=interpreter)
+        
+        
     def info(self):
+        '''
+            Request an info packet (version and time)
+        '''
         self.send(self.packet_gen.info())
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -387,28 +460,36 @@ class SatelliteSimulator:
     def print_response(self):
         self.output_msg(f'Response: {self.read_pending()}')
         
-    def monitor_experiment(self, update_freq_ms:int=500):
+    def monitor_experiment(self, update_freq_ms:int=500, result_interpreted=None):
         
         self.experiment_current_results()
         self.wait(ResponseDelayMs)
         self.read_pending()
         if not self.exp_result.running:
             print(f"Experiment not running {self.exp_result}")
+            
+        self.exp_result.interpreter = result_interpreted
         
         print(f"UPDATE {self.exp_result}")
         rq = self.run_quiet
         self.run_quiet = True
         cur_res = self.exp_result.result
-        while self.exp_result.running:
-            self.experiment_current_results()
-            self.wait(ResponseDelayMs)
-            self.read_pending()
-            
-            if cur_res != self.exp_result.result:
-                cur_res = self.exp_result.result
-                print(f"UPDATE {self.exp_result}")
+        try:
+            while self.exp_result.running:
+                self.experiment_current_results()
+                self.wait(ResponseDelayMs)
+                self.read_pending()
                 
-            time.sleep(update_freq_ms/1000)
+                if cur_res != self.exp_result.result:
+                    cur_res = self.exp_result.result
+                    print(f"UPDATE {self.exp_result}")
+                    
+                time.sleep(update_freq_ms/1000)
+        except KeyboardInterrupt:
+            self.run_quiet = rq
+            print(f"Interrupted: {self.exp_result}")
+            return
+            
             
         self.run_quiet = rq
         print(f"EXP done: {self.exp_result}")
@@ -662,7 +743,10 @@ class PacketConstructor(SatelliteSimulator):
         return '<PacketConstructor>'
         
         
-        
+def osc_bones_interpret(res:bytearray):
+    if len(res) >= 4:
+        return f"Loop {res[0]} avg {int.from_bytes(res[1:4], 'little')}"
+    return res
         
 def pingit():
     while True:
