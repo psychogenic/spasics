@@ -143,6 +143,40 @@ PKT: 0x45,0x44, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0            E  D 0
 
 No response.
 
+
+### Queue Experiment
+
+Queue an experiment to run.  This is similar to the run now, but allows us to queue multiple experiments, whether something is running now or not.
+
+If no experiment is currently running, the first queued experiment will be launched.  Other than the command byte itself for queueing, the process is identical to run now.
+
+The only caveat is that this queue is non-persistent: if we power cycle or reboot, the queue goes away.
+
+Command
+
+```
+'E'+'Q   EXPID
+0x49      [2]
+```
+
+Here's a sample queue of experiment 1 and experiment two along with some arguments.
+
+The argument setting process is the same as for run now
+
+```
+>>> packetdump.experiment_queue(1)
+Queueing experiment 1
+PKT: 0x96, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0           96 1 0
+>>>
+>>> packetdump.experiment_queue(2, b'123abc')
+Queueing experiment 2
+PKT: 0x86,0x31,0x32,0x33,0x61,0x62,0x63, 0x0           86  1  2  3  a  b  c
+PKT: 0x96, 0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0           96 2 0
+>>> 
+```
+
+Responds with OK or error if no such experiment is mapped.
+
 ### Status
 
 Requesting status will queue a response that includes information on the current (or last) experiment, its run time, its completion or if any exceptions were caught as well as (potentially partial) current results specified by the code.

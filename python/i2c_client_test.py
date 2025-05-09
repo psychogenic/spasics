@@ -175,6 +175,12 @@ class SatelliteSimulator:
         self.send_all(self.packet_gen.run_experiment_now_list(experiment_id, args))
         self.wait(ResponseDelayMs)
         self.print_response()
+        
+    def experiment_queue(self, experiment_id:int, args:bytearray=None):
+        self.output_msg(f"Queueing experiment {experiment_id}")
+        self.send_all(self.packet_gen.experiment_queue(experiment_id, args))
+        self.wait(ResponseDelayMs)
+        self.print_response()
     
     def status(self):
         '''

@@ -47,9 +47,8 @@ class ClientPacketGenerator:
 
     def experiment_result(self):
         return bytearray([ord('E') + ord('I')])
-        
-    def run_experiment_now_list(self, experiment_id:int, args:bytearray=None):
-        
+    
+    def experiment_packets_list(self, cmd:int, experiment_id:int, args:bytearray=None):
         ret_list = []
         if args is not None and len(args):
             for chunk in [args[i:i + 7] for i in range(0, len(args), 7)]:
@@ -57,10 +56,15 @@ class ClientPacketGenerator:
                 bts.extend(chunk)
                 ret_list.append(bts)
         
-        bts = bytearray([ord('E')])
+        bts = bytearray([cmd])
         bts += experiment_id.to_bytes(2, 'little')
         ret_list.append(bts)
         return ret_list
+    
+    def run_experiment_now_list(self, experiment_id:int, args:bytearray=None):
+        return self.experiment_packets_list(ord('E'), experiment_id, args)
+    def experiment_queue(self, experiment_id:int, args:bytearray=None):
+        return self.experiment_packets_list(ord('E') + ord('Q'), experiment_id, args)
     
     def filesize(self, varid:int):
             return bytearray([ord('F'), ord('S'), varid])

@@ -106,8 +106,8 @@ def process_pending_data():
                 queue_response(rsp.ResponseError(error_codes.UnknownExperiment, bytearray([exp_id])))
                 return 
             arglen = len(i2cglb.ExpArgs.argument_swap)
-            if  arglen < 10:
-                i2cglb.ExpArgs.argument_swap += bytearray(10 - arglen)
+            if  arglen < 14:
+                i2cglb.ExpArgs.argument_swap += bytearray(14 - arglen)
                 
             
             i2cglb.ERes.expid = exp_id
@@ -149,6 +149,26 @@ def process_pending_data():
                 i2cglb.ExpArgs.argument_swap += payload 
                 
             # print(f"Parms now {i2cglb.ExpArgs.argument_swap}")
+            
+        elif typebyte == ord('E') + ord('Q'):
+            # experiment queue
+            if len(payload):
+                exp_id = int.from_bytes(payload[:2], 'little')
+                if len(payload) > 2:
+                    exp_argument_bytes = payload[2:]
+                    i2cglb.ExpArgs.argument_swap += exp_argument_bytes
+            else:
+                exp_id = 0
+                
+            if exp_id not in ExperimentsAvailable:
+                i2cglb.ExpArgs.clear_swap()
+                queue_response(rsp.ResponseError(error_codes.UnknownExperiment, bytearray([exp_id])))
+                return 
+            
+            i2cglb.ExperimentQueue.append((exp_id, i2cglb.ExpArgs.argument_swap,))
+            i2cglb.ExpArgs.clear_swap()
+            queue_response(rsp.ResponseOKMessage(bytearray([ord('E'), ord('Q'), exp_id % 256])))
+            
                 
         elif typebyte == ord('E') + ord('I'):
             # experiment immediate result
@@ -324,6 +344,21 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
         
     return i2cglb.ERes
 
+def process_experiment_queue():
+    if not len(i2cglb.ExperimentQueue):
+        return 
+    print('procQ')
+    exp_data = i2cglb.ExperimentQueue[0]
+    print(f"EXP DATA: {exp_data}")
+    i2cglb.ExperimentQueue = i2cglb.ExperimentQueue[1:]
+    if len(exp_data[1]):
+        i2cglb.ExpArgs.argument_swap = exp_data[1]
+    else:
+        i2cglb.ExpArgs.argument_swap = bytearray()
+    fakemsg = bytearray([ord('E')])
+    fakemsg += exp_data[0].to_bytes(2, 'little')
+    i2c_data_in(3, fakemsg)
+    
 def main_loop(runtimes:int=0):
     i2c_dev = get_i2c_device()
     loop_count = 0
@@ -349,6 +384,10 @@ def main_loop(runtimes:int=0):
                     queue_response(rsp.ResponseExperiment(res.expid, res.completed, 
                                                           res.exception_type_id, 
                                                           res.result))
+                    
+                    process_experiment_queue()
+            else:
+                process_experiment_queue()
             
             
             # if the poll_pending_data() queued up some 

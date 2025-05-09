@@ -12,6 +12,7 @@ ClientVariables = Variables()
 PendingDataIn = [bytearray(9), bytearray(9), bytearray(9), bytearray(9), bytearray(9), bytearray(9)]
 PendingDataNum = 0
 PendingDataOut = []
+ExperimentQueue = []
 ExperimentRun = False
 LastTimeSyncMessageTime = -1
 LastTimeSyncValue = 0
