@@ -10,9 +10,10 @@ import random
 from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
 
-def contributors(params:ExperimentParameters, response:ExpResult):
+def contributors(params:ExperimentParameters, response:ExpResult, only_lottery:bool=False):
     
     people = [
+            b'All TTers!',
             b'Pat Deegan',
             b'Matt Venn',
             b'Uri Shaked',
@@ -26,12 +27,13 @@ def contributors(params:ExperimentParameters, response:ExpResult):
             b'Ken Pettit'
         ]
     
-    for p in people:
-        response.result = bytearray(p)
-        for _i in range(200):
-            time.sleep_ms(10)
-            if not params.keep_running:
-                return 
+    if not only_lottery:
+        for p in people:
+            response.result = bytearray(p)
+            for _i in range(200):
+                time.sleep_ms(10)
+                if not params.keep_running:
+                    return 
             
     lottery_winner = random.choice(people)
     
