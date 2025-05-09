@@ -718,7 +718,11 @@ class PacketConstructor(SatelliteSimulator):
             send raw bytes over to device
         '''
         if self.accumulate_packets:
-            self._packets.append(bts)
+            saved_bts = bytearray(bts)
+            nb = len(saved_bts)
+            if nb < 8:
+                saved_bts.extend(bytearray(8 - nb))
+            self._packets.append(saved_bts)
                 
         hexbts = bytearray(bts)
         if len(hexbts) < 8:
