@@ -36,6 +36,8 @@ class ClientPacketGenerator:
             
     def mkdir(self, varid:int):
         return bytearray([ord('F'), ord('D'), varid])
+    def lsdir(self, varid:int):
+        return bytearray([ord('F'), ord('L'), varid])
     
     def file_unlink(self, varid:int):
         return bytearray([ord('F'), ord('U'), varid])
@@ -56,25 +58,12 @@ class ClientPacketGenerator:
             return bytearray([ord('F') + ord('R')])
             
     def file_write_list(self, bts_to_write:bytearray):
-        bts = bytearray([ord('F') + ord('W')])
-    
-        if len(bts_to_write) < 8:
-            bts += bts_to_write
-            return [bts]
-        
-        
-        ret_list = [bts + bts_to_write[0:8]]
-        i = 7
-        while i < len(bts_to_write):
-            end = i + 8
-            if end > len(bts_to_write):
-                end = len(bts_to_write) - 1
-            
-            bts = bytearray([ord('F') + ord('W')])
-            bts += bts_to_write[i:end]
-            ret_list.append(bts)
-            i += 7
-            
+        cmdPrefix = ord('F') + ord('W')
+        ret_list = []
+        for chunk in [bts_to_write[i:i + 7] for i in range(0, len(bts_to_write), 7)]:
+            vals = [cmdPrefix]
+            vals.extend(chunk)
+            ret_list.append(bytearray(vals)) 
         return ret_list  
     def open_write(self, varid:int):
         return bytearray([ord('F'), ord('O'), varid, ord('W')])

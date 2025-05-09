@@ -6,6 +6,7 @@
 import machine 
 import time 
 import random
+import os
 
 SlaveAddress = 0x56
 ResponseDelaySeconds = 0.5
@@ -65,6 +66,90 @@ class SatelliteSimulator:
         else:
             return [v, v2]
         
+    def _parse_block(self, blk):
+        if not len(blk):
+            return (None, b'')
+        if blk == bytearray([0]*len(blk)):
+            return (None, b'')
+        if blk[0] == 0x01:
+            # system message: 0x01 ...
+            if blk[1]:
+                # ok message: 0x01 [NON-ZERO] ...
+                if blk[1] == 0x01:
+                    # 0x01 0x01 : OK
+                    return ('OK', blk[4:])
+                if blk[1] == 0x02:
+                    # 0x01 0x02 b'OK' LEN MSGBYTES[LEN]: OK WITH PAYLOAD
+                    msglen = blk[4]
+                    msg = blk[5:(5+msglen)]
+                    return ( f'OK: {msg}', blk[5+msglen:] )
+            else:
+                # error message
+                # 0x01 0x00 ERRCODE LEN MSG[LEN]
+                errcode = blk[2]
+                errlen = blk[3]
+                if errlen:
+                    errmsg = blk[4:(4+errlen)]
+                else:
+                    errmsg = ''
+                 
+                return ( f'ERROR [{errcode}] {errmsg}', blk[(4+errlen):] )
+        
+        elif blk[0] == 0x07:
+            # 0x07 RUNNING EXPERIMENTID EXCEPTIONID RUNTIME[4] RESULT[8]
+            running = True if blk[1] else False
+            expid = blk[2]
+            exception_id = blk[3]
+            runtime = int.from_bytes(blk[4:(4+4)], 'little')
+            res = blk[8:]
+            if exception_id:
+                exstr = f'Exception: {exception_id}'
+            else:
+                exstr = 'OK'
+            return ( f'Status running:{running} exp {expid} {exstr} {runtime}s: {res}', b'')
+        
+            
+        elif blk[0] == 0x09:
+            # 0x09 EXPERIMENTID COMPLETED EXCEPT_ID LEN RESULTBYTES[LEN]
+            expid = blk[1]
+            completed = blk[2]
+            except_id = blk[3]
+            reslen = blk[4]
+            if reslen:
+                resmsg = blk[5:(5+reslen)]
+            else:
+                resmsg = ''
+            
+            end_status = ''
+            if except_id:
+                end_status = f'Exception {except_id}'
+            else:
+                if completed:
+                    end_status = 'COMPLETED'
+                else:
+                    end_status = 'INCOMPLETED?'
+                
+                
+            return ( f'EXPERIMENT {expid}: {end_status} {resmsg}', blk[(5+reslen):] )
+            
+        elif blk[0] == ord('F'):
+            val = 0
+            if len(blk) >= 7:
+                val = int.from_bytes(blk[3:7], 'little')
+            if blk[1:3] == b'SZ':
+                # size response
+                return (f'FILE size: {val}', blk[7:])
+            elif blk[1:3] == b'CS':
+                # checksum
+                return (f'FILE checksum: {hex(val)}', blk[7:])
+            elif blk[1] == ord('D'):
+                return (f'FILES LS: {blk[2:]}', b'')
+            else:
+                return (f'FILE UNKNOWN resp ({blk[1]}): {blk}', b'')
+        else:
+            return (f"Unknown response: {blk}", b'')
+        
+        
     def fetch_pending(self):
         '''
             read blocks of 16 bytes until you hit 
@@ -86,67 +171,16 @@ class SatelliteSimulator:
                 return rcvd
             
             
-            elif blk[0] == 0x01:
-                # system message: 0x01 ...
-                if blk[1]:
-                    # ok message: 0x01 [NON-ZERO] ...
-                    if blk[1] == 0x01:
-                        # 0x01 0x01 : OK
-                        return 'OK'
-                    if blk[1] == 0x02:
-                        # 0x01 0x02 b'OK' LEN MSGBYTES[LEN]: OK WITH PAYLOAD
-                        msglen = blk[4]
-                        msg = blk[5:(5+msglen)]
-                        rcvd.append( f'OK: {msg}' )
-                else:
-                    # error message
-                    # 0x01 0x00 ERRCODE LEN MSG[LEN]
-                    errcode = blk[2]
-                    errlen = blk[3]
-                    if errlen:
-                        errmsg = blk[4:(4+errlen)]
-                    else:
-                        errmsg = ''
-                    rcvd.append( f'ERROR [{errcode}] {errmsg}' )
-            
-            elif blk[0] == 0x07:
-                # 0x07 RUNNING EXPERIMENTID EXCEPTIONID RUNTIME[4] RESULT[8]
-                running = True if blk[1] else False
-                expid = blk[2]
-                exception_id = blk[3]
-                runtime = int.from_bytes(blk[4:(4+4)], 'little')
-                res = blk[8:]
-                if exception_id:
-                    exstr = f'Exception: {exception_id}'
-                else:
-                    exstr = 'OK'
-                rcvd.append( f'Status running:{running} exp {expid} {exstr} {runtime}s: {res}')
-            
+            (parsed_resp, left_overs) = self._parse_block(blk)
+            rcvd.append(parsed_resp)
+            while left_overs and len(left_overs):
+                (parsed_resp, left_overs) = self._parse_block(left_overs)
+                if parsed_resp is not None:
+                    rcvd.append(parsed_resp)
                 
-            elif blk[0] == 0x09:
-                # 0x09 EXPERIMENTID COMPLETED EXCEPT_ID LEN RESULTBYTES[LEN]
-                expid = blk[1]
-                completed = blk[2]
-                except_id = blk[3]
-                reslen = blk[4]
-                if reslen:
-                    resmsg = blk[5:(5+reslen)]
-                else:
-                    resmsg = ''
+            
+            time.sleep_ms(35)
                 
-                end_status = ''
-                if except_id:
-                    end_status = f'Exception {except_id}'
-                else:
-                    if completed:
-                        end_status = 'COMPLETED'
-                    else:
-                        end_status = 'INCOMPLETED?'
-                    
-                    
-                rcvd.append( f'EXPERIMENT {expid}: {end_status} {resmsg}' )
-            else:
-                rcvd.append(f"Unknown response: {blk}")
         
     def abort(self):
         # b'A'
@@ -197,23 +231,48 @@ class SatelliteSimulator:
         for p in packets:
             self.send(p)
             print('.', end='')
-            time.sleep(0.010) # give a sec to process
+            time.sleep(0.040) # give a sec to process
         print()
     def check_file(self, filepath:str):
         print(f"Sending req for size/checksum for {filepath}")
         varid = 1 # could be anything
         packets = self.packet_gen.setvar_list(varid, filepath) # packets to set the filename variable
         
-        packets.append(self.packet_gen.filesize(varid))
-        packets.append(self.packet_gen.checksum(varid))
-        
+        print("Doing setup...")
         self.send_all(packets)
         time.sleep(ResponseDelaySeconds)
+        print(self.read_pending())
+        
+
+        self.send(self.packet_gen.filesize(varid))
+        time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')
+        self.send(self.packet_gen.checksum(varid))
+        print("Getting checksum... give it a sec")
+        time.sleep(ResponseDelaySeconds*4)
+        print(f'Response: {self.read_pending()}')
+        
+    def check_file_local(self, filepath:str):
+        
+        sz = os.stat(filepath)[6]
+        
+        f = open(filepath, 'rb')
+        
+        csum = 0
+        v = f.read(4)
+        while len(v):
+            nval = int.from_bytes(v, 'little')
+            csum = csum ^ nval
+            v = f.read(4)
+            
+        f.close()
+            
+        print(f'Local file {filepath}:\n size: {sz}\n checksum: {hex(csum)}')
+        
         
     def mkdir(self, dirpath:str):
         print(f"Sending req to make dir {dirpath}")
-        varid = 20 # could be anything
+        varid = 2 # could be anything
         packets = self.packet_gen.setvar_list(varid, dirpath) # packets to set the filename variable
         packets.append(self.packet_gen.mkdir(varid))
         
@@ -221,7 +280,45 @@ class SatelliteSimulator:
         time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')
         
+    def lsdir(self, dirpath:str):
+        print(f"Sending ls on dir {dirpath}")
+        varid = 1
+        self.send_all(self.packet_gen.setvar_list(varid, dirpath))
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
+        self.send(self.packet_gen.lsdir(varid))
+        time.sleep(ResponseDelaySeconds * 2)
+        print(f'Response: {self.read_pending()}')
         
+        
+        
+        
+    def file_delete(self, fpath:str):
+        srcid = 1
+        print(f"Delete {fpath}.  Setting up...")
+        self.send_all(self.packet_gen.setvar_list(srcid, fpath))
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
+        self.packet_gen.file_unlink(srcid)
+        
+    def file_move(self, srcpath:str, destpath:str):
+        srcid = 1
+        destid = 2
+        
+        print(f"Move {srcpath} to {destpath}.  Setting up src")
+        self.send_all(self.packet_gen.setvar_list(srcid, srcpath))
+        
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
+        
+        print("Setting up dest")
+        self.send_all(self.packet_gen.setvar_list(destid, destpath))
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
+        print("Issuing mv")
+        self.send(self.packet_gen.file_move(srcid, destid))
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
         
     def upload_file(self, srcfile:str, destpath:str, swap_name:str='/mytmp.txt'):
         
@@ -244,12 +341,14 @@ class SatelliteSimulator:
         # to not eat up a bunch of mem
         bts = infile.read(16*6)
         while len(bts):
-            packets.extend(self.packet_gen.file_write_list(bts))
+            new_packets = self.packet_gen.file_write_list(bts)
+            print(f'New packets:\n{new_packets}')
+            packets.extend(new_packets)
             
             self.send_all(packets)
             packets = []
             
-            bts = infile.read(16*4)
+            bts = infile.read(16*6)
             
         # close the file we just wrote... should check that it's
         # size/checksum match but meh
@@ -266,7 +365,10 @@ class SatelliteSimulator:
         self.send(self.packet_gen.filesize(destid))
         self.send(self.packet_gen.checksum(destid))
         
-        time.sleep(ResponseDelaySeconds)
+        print(f"Gimme a sec")
+        time.sleep(ResponseDelaySeconds * 5)
+        print(self.fetch_pending())
+        
         
         
         
