@@ -33,11 +33,8 @@ All multi-byte integer values used are **little-endian**.
 
 ```
 >>> from i2c_client_test import *
->>> 
->>> 
->>> packetdump
-<PacketConstructor>
->>> 
+>>>
+>>>
 >>> packetdump.ping()
 Sending ping 1
 PKT: 0x50, 0x1,0x50,0x4e,0x47, 0x0, 0x0, 0x0            P 1  P  N  G
@@ -45,17 +42,25 @@ PKT: 0x50, 0x1,0x50,0x4e,0x47, 0x0, 0x0, 0x0            P 1  P  N  G
 >>> packetdump.ping()
 Sending ping 2
 PKT: 0x50, 0x2,0x50,0x4e,0x47, 0x0, 0x0, 0x0            P 2  P  N  G
->>> 
+>>>
 >>> packetdump.ping(0x88)
 Sending ping 136
 PKT: 0x50,0x88,0x50,0x4e,0x47, 0x0, 0x0, 0x0            P 88  P  N  G
->>> 
+>>>
+>>> packetdump.run_experiment_now(3, b'someargs')
+Requesting run of experiment 3
+PKT: 0x86,0x73,0x6f,0x6d,0x65,0x61,0x72,0x67           86  s  o  m  e  a  r  g
+PKT: 0x86,0x73, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0           86  s
+PKT: 0x45, 0x3, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0            E 3 0
 >>>
 >>> packetdump.packets()
-[bytearray(b'P\x01PNG'), bytearray(b'P\x02PNG'), bytearray(b'P\x88PNG')]
->>> 
+[bytearray(b'P\x01PNG\x00\x00\x00'), 
+ bytearray(b'P\x02PNG\x00\x00\x00'), 
+ bytearray(b'P\x88PNG\x00\x00\x00'), 
+ bytearray(b'\x86somearg'), 
+ bytearray(b'\x86s\x00\x00\x00\x00\x00\x00'), 
+ bytearray(b'E\x03\x00\x00\x00\x00\x00\x00')]
 ```
-
 
 I'll use this utility throughout to demonstrate packet contents.
 
