@@ -114,8 +114,8 @@ class ClientPacketGenerator:
             return ret_list
         
         for i in range(1, len(chunks)):
-            appvar = [ord('V') + ord('A'), v]
-            appvar.extend(chunks[i])
+            appvar = bytearray([ord('V') + ord('A'), v])
+            appvar.extend(bytearray(chunks[i]))
             ret_list.append(appvar)
             
         return ret_list

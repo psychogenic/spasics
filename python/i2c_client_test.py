@@ -51,7 +51,7 @@ class SatelliteSimulator:
         if cnt is None:
             self._ping_count += 1
             cnt = self._ping_count
-        print(f"Sending ping {self._ping_count}")
+        print(f"Sending ping {cnt}")
         self.send(self.packet_gen.ping(cnt))
         self.wait(ResponseDelayMs)
         self.print_response()
@@ -283,7 +283,20 @@ class SatelliteSimulator:
         self.send_all(self.packet_gen.setvar_list(srcid, fpath))
         self.wait(ResponseDelayMs)
         self.print_response()
-        self.packet_gen.file_unlink(srcid)
+        self.send(self.packet_gen.file_unlink(srcid))
+        
+    def variable_get(self, v:int):
+        print(f"Get variable {v}")
+        self.send(self.packet_gen.getvar(v))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
+    def variable_set(self, v:int, value:str):
+        print(f"Set variable {v} to '{value}'")
+        self.send_all(self.packet_gen.setvar_list(v, value))
+        self.wait(ResponseDelayMs)
+        self.print_response()
+        
     
     
     def check_file_local(self, filepath:str):
@@ -348,6 +361,7 @@ class SatelliteSimulator:
             self._i2c.writeto(SlaveAddress, bts)
         except Exception as e:
             print(e)
+            raise e
         self.wait(10)
         
     
@@ -356,7 +370,7 @@ class SatelliteSimulator:
         for p in packets:
             self.send(p)
             print('.', end='')
-            self.wait(1000*0.040) # give a sec to process
+            self.wait(40) # give a sec to process
         print()
         
         
@@ -501,13 +515,20 @@ class SatelliteSimulator:
         
 class PacketConstructor(SatelliteSimulator):
     
-    def __init__(self, dumpAscii:bool=True, prefix:str='PKT: '):
+    def __init__(self, dumpAscii:bool=True, accumulate_packets:bool=True, prefix:str='PKT: '):
         super().__init__(0, 0, 0) 
         self.dump_ascii = dumpAscii
+        self.accumulate_packets = accumulate_packets
         self.prefix = prefix
+        self._packets = []
     
     def read_pending(self):
         pass
+    
+    def packets(self):
+        pkts = self._packets 
+        self._packets = []
+        return pkts
     
     def read_block(self):
         pass 
@@ -519,10 +540,15 @@ class PacketConstructor(SatelliteSimulator):
         
     def print_response(self):
         pass 
+    
+    
     def send(self, bts:bytearray):
         '''
             send raw bytes over to device
         '''
+        if self.accumulate_packets:
+            self._packets.append(bts)
+                
         hexbts = bytearray(bts)
         if len(hexbts) < 8:
             hexbts.extend(bytearray(8 - len(hexbts)))
@@ -530,10 +556,11 @@ class PacketConstructor(SatelliteSimulator):
         hex_str = ','.join(map(lambda x: hex(x) if x>15 else f' {hex(x)}', hexbts))
         if not self.dump_ascii:
             print(f'{self.prefix}{hex_str}')
-            return 
+            return
         spacers = ' '*(50 - len(hex_str))
         mix_str = ' '.join(map(lambda x: f'{x:x}' if x < 0x20 or x > 0x7E else f' {chr(x)}', bts ))
         print(f'{self.prefix}{hex_str}{spacers}{mix_str}')
+        
     
     def send_all(self, packets):
         for p in packets:
@@ -541,7 +568,8 @@ class PacketConstructor(SatelliteSimulator):
     
         
 
-        
+    def __repr__(self):
+        return '<PacketConstructor>'
         
         
         
