@@ -499,6 +499,7 @@ class SatelliteSimulator:
             
         self.run_quiet = rq
         print(f"EXP done: {self.exp_result}")
+        self.status()
             
         
     def send(self, bts:bytearray):
