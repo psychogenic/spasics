@@ -1,3 +1,21 @@
+# translations from spasic.error_codes
+ErrorCodes = {
+    
+    0x01: 'Unknown Command',
+    0x02: 'Unknown Experiment',
+    0x03: 'Busy',
+    0x04: 'Unterminated Core1 Exp',
+    0x05: 'Runtime Exception',
+    0x06: 'Invalid Request',
+    0x07: 'Unknown Variable',
+    0x08: 'Cannot open file',
+    0x09: 'EOF',
+    0x0A: 'Write Failure',
+    0x0B: 'MakeDir Failure',
+    0x0C: 'Delete File Failure',
+    0x0D: 'Rename File Failure',
+    0x0E: 'POST Fail'
+}
 
 class ClientPacketGenerator:
     
@@ -23,7 +41,9 @@ class ClientPacketGenerator:
     def reboot(self, safe_mode:bool=False):
         return bytearray([ord('R'), 1 if safe_mode else 0])
 
-
+    def experiment_result(self):
+        return bytearray([ord('E') + ord('I')])
+        
     def run_experiment_now(self, experiment_id:int, args:bytearray=None):
         bts = bytearray([ord('E')])
         bts += experiment_id.to_bytes(2, 'little')

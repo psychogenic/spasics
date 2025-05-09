@@ -11,7 +11,13 @@ import os
 SlaveAddress = 0x56
 ResponseDelaySeconds = 0.5
 
-from i2c_client_packets import ClientPacketGenerator
+from i2c_client_packets import ClientPacketGenerator, ErrorCodes
+
+def error_to_string(error_code:int):
+    if error_code in ErrorCodes:
+        return ErrorCodes[error_code]
+    
+    return 'UNKNOWN ERROR'
 
 class SatelliteSimulator:
     '''
@@ -93,7 +99,7 @@ class SatelliteSimulator:
                 else:
                     errmsg = ''
                  
-                return ( f'ERROR [{errcode}] {errmsg}', blk[(4+errlen):] )
+                return ( f'ERROR "{error_to_string(errcode)}" [{errcode}] {errmsg}', blk[(4+errlen):] )
         
         elif blk[0] == 0x07:
             # 0x07 RUNNING EXPERIMENTID EXCEPTIONID RUNTIME[4] RESULT[8]
@@ -127,7 +133,7 @@ class SatelliteSimulator:
                 if completed:
                     end_status = 'COMPLETED'
                 else:
-                    end_status = 'INCOMPLETED?'
+                    end_status = 'RUNNING/INCOMPLETED'
                 
                 
             return ( f'EXPERIMENT {expid}: {end_status} {resmsg}', blk[(5+reslen):] )
@@ -203,6 +209,13 @@ class SatelliteSimulator:
         time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')
         
+    def experiment_current_results(self):
+        print("Requesting experiment current res")
+        self.send(self.packet_gen.experiment_result())
+        time.sleep(ResponseDelaySeconds)
+        print(f'Response: {self.read_pending()}')
+        
+        
     def ping(self):
         # 'P' and payload byte to get back in pong
         self._ping_count += 1
@@ -225,6 +238,7 @@ class SatelliteSimulator:
         time.sleep(ResponseDelaySeconds)
         print(f'Response: {self.read_pending()}')
         
+    
     
     def send_all(self, packets):
         print("Send all", end='')
@@ -419,6 +433,7 @@ def stressTest():
         sim.status()
         sim.ping()
         sim.status()
+        sim.experiment_current_results()
         sim.ping()
         sim.status()
         time.sleep(1)
@@ -436,7 +451,7 @@ def stressTest():
             
         sim.ping()
         time.sleep(1.3)
-        sim.status()
+        sim.experiment_current_results()
         sim.run_experiment_now(2, random_exp2_params())
         time.sleep(1)
         sim.status()
@@ -446,6 +461,8 @@ def stressTest():
         sim.status()
         time.sleep(1)
         sim.status()
+        sim.ping()
+        sim.experiment_current_results()
         
 sim = SatelliteSimulator()
     
