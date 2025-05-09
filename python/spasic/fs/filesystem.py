@@ -37,6 +37,13 @@ class FSAccess:
         except:
             return False 
         return True
+    def lsdir(self, path):
+        try:
+            dirs = os.listdir(path)
+        except:
+            return ''
+        
+        return '|'.join(dirs)
     def mkdir(self, path):
         if not len(path):
             print("No path passed?")

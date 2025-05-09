@@ -86,6 +86,12 @@ class ResponseExperiment(Response):
             self.append(result)
         else:
             self.append(0)
+class ResponseFile(Response):
+    def __init__(self, rtype:bytes, value:bytearray=None):
+        super().__init__()
+        self.append(b'F' + rtype)
+        if value is not None:
+            self.append(value)
             
 class ResponseStatus(Response):
     # '''

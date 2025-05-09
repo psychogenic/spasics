@@ -42,7 +42,7 @@ def fs_file_read(payload:bytearray):
     
 def fs_file_write(payload:bytearray):
     # TODO:FIXME how much data should we queue per request?
-    print(f"fwrite {payload}")
+    print(f"fwr {payload}")
     if len(payload) < 1:
         print("payload empty -- ignore!")
         return 
@@ -61,6 +61,7 @@ def fs_action_on_vid(payload:bytearray):
     # b'FD' VARID -- make a directory (including parents)
     # b'FU' VARID -- unlink/delete a file
     # b'FM' SRCVARID DESTVARID -- move SRC to DEST
+    # b'FL' VARID -- ls
     invalidReq = rsp.ResponseError(error_codes.InvalidRequest)
     if len(payload) < 2:
         return queue_response(invalidReq)
@@ -74,10 +75,10 @@ def fs_action_on_vid(payload:bytearray):
     print(f"file action {action} on {filepath}")
     if action == ord('S'):
         sz = i2cglb.FileSystem.file_size(filepath)
-        queue_response(rsp.ResponseOKMessage(b'SZ' + sz.to_bytes(4, 'little')))
+        queue_response(rsp.ResponseFile(b'SZ', sz.to_bytes(4, 'little')))
     elif action == ord('Z'):
         cs = i2cglb.FileSystem.simple_checksum(filepath)
-        queue_response(rsp.ResponseOKMessage(b'CS' + cs.to_bytes(4, 'little')))
+        queue_response(rsp.ResponseFile(b'CS', cs.to_bytes(4, 'little')))
         
     elif action == ord('D'):
         print("mkdir")
@@ -85,6 +86,17 @@ def fs_action_on_vid(payload:bytearray):
             queue_response(rsp.ResponseOKMessage(b'MKDIR'))
         else:
             queue_response(rsp.ResponseError(error_codes.MakeDirFailure, bytearray([vid])))
+    elif action == ord('L'):
+        print("LS")
+        dirs = i2cglb.FileSystem.lsdir(filepath)
+        if not len(dirs):
+            queue_response(rsp.ResponseError(error_codes.CantOpenFile, b'BDDIR'))
+            return 
+        for chunk in [dirs[i:i + 14] for i in range(0, len(dirs), 14)]:
+            try:
+                queue_response(rsp.ResponseFile(b'D', bytearray(chunk, 'ascii')))
+            except:
+                pass
     elif action == ord('U'):
         print("DEL!")
         if i2cglb.FileSystem.delete(filepath):
