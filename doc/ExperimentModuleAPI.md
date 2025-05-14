@@ -155,8 +155,8 @@ The only caveat is that this queue is non-persistent: if we power cycle or reboo
 Command
 
 ```
-'E'+'Q   EXPID
-0x49      [2]
+'E'+'Q'   EXPID
+0x96      [2]
 ```
 
 Here's a sample queue of experiment 1 and experiment two along with some arguments.
