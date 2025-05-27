@@ -6,6 +6,9 @@ import time
 import micropython
 import machine
 import _thread
+
+ReservedMemoryBlock = bytearray(8192*8)
+
 from ttboard.demoboard import DemoBoard # keep this
 import i2c_server_globals as i2cglb
 import spasic.cnc.response.response as rsp
@@ -424,7 +427,7 @@ def main_loop(runtimes:int=0):
             # sleep a bit to yield so under the hood
             # magiks can happen if required
             time.sleep_ms(1)
-                
+            ReservedMemoryBlock = None # free her up   
         except Exception as e:
             print(f'ml ex: {e}')
             # report this unexpected error

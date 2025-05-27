@@ -5,6 +5,7 @@
 import gc
 DefaultGCThreshold = gc.threshold()
 gc.threshold(4096)
+reservedBlock = bytearray(8192*4)
 import micropython 
 import _thread
 import time 
@@ -13,6 +14,8 @@ import spasic.settings as sts
 import spasic.ver as ver
 from spasic.util.watchdog import enable_watchdog
 from ttboard.demoboard import DemoBoard
+from microcotb.types.logic_array import LogicArray
+from microcotb.types.range import Range
 
 Debug = False
 tt = DemoBoard.get()
@@ -46,7 +49,9 @@ if not Debug:
     if sts.PerformPOSTTest:
         print("Performing POST")
         i2c_server.POST()
-     
+    micropython.mem_info()
+    reservedBlock = None # free her up
+    micropython.mem_info()
     i2c_server.main_loop()  
 else:
     print("DEBUG mode -- TESTING ASIC/wiring")
