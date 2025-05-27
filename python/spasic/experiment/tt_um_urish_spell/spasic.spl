@@ -1,0 +1,31 @@
+; Writes ASCII "spASICs$" to uio port
+; Author: Uri Shaked
+; License: Public Domain
+; To compile into bytecode, use https://github.com/urish/hlspl.
+
+.ORIGIN 0
+
+CONST PINB 0x36
+CONST DDRB 0x37
+CONST PORTB 0x38
+
+; Configure the first 7 uio pins as outputs
+  PUSH 127
+  PUSH DDRB
+  WRITE
+; Write the message
+  PUSH 36       ; $
+  PUSH 115      ; s
+  PUSH 67       ; C
+  PUSH 73       ; I
+  PUSH 83       ; S
+  PUSH 65       ; A
+  PUSH 112      ; p
+  PUSH 115      ; s
+  PUSH 7        ; length - 1
+:Message
+  XCHG
+  PUSH PORTB
+  WRITE
+  LOOP @Message
+  SLEEP

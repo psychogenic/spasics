@@ -15,10 +15,10 @@ def run_experiment(params:ExperimentParameters, response:ExpResult):
         # import HERE, inside the function, 
         # such that loading all the experiment runners doesn't 
         # eat a ton of memory by pre-importing everything
-        import spasic.experiment.tt_um_fstolzcode.pi
+        import spasic.experiment.tt_um_andrewtron3000.test
         
         # run that experiment
-        spasic.experiment.tt_um_fstolzcode.pi.test_pi(params, response, num_iterations=16)
+        spasic.experiment.tt_um_andrewtron3000.test.run_test(params, response, num_iterations=16)
         
     except Exception as e:
         # an exception occurred... 

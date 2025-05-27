@@ -1,7 +1,7 @@
 '''
 Created on Apr 30, 2025
 
-@author: Pat Deegan
+@author: Pat Deegan, Jonas Nilsson
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
 
@@ -15,10 +15,10 @@ def run_experiment(params:ExperimentParameters, response:ExpResult):
         # import HERE, inside the function, 
         # such that loading all the experiment runners doesn't 
         # eat a ton of memory by pre-importing everything
-        import spasic.experiment.tt_um_fstolzcode.pi
+        import spasic.experiment.tt_um_ttrpg_dice.dice_roller
         
         # run that experiment
-        spasic.experiment.tt_um_fstolzcode.pi.test_pi(params, response, num_iterations=16)
+        spasic.experiment.tt_um_ttrpg_dice.dice_roller.test_dice(params, response)
         
     except Exception as e:
         # an exception occurred... 
