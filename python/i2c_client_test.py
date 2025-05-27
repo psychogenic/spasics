@@ -127,6 +127,8 @@ class SatelliteSimulator:
         self.packet_gen = ClientPacketGenerator()
         self.exp_result = ExpResultCache()
         self.run_quiet = run_quiet
+        self.echo_blocks = False # echo blocks received
+        self.manual_response_fetching = False # don't auto-fetch responses on commands
         
     def output_msg(self, msg, force:bool=False):
         if force or not self.run_quiet:
@@ -464,7 +466,8 @@ class SatelliteSimulator:
         time.sleep_ms(int(ms))
         
     def print_response(self):
-        self.output_msg(f'Response: {self.read_pending()}')
+        if not self.manual_response_fetching:
+            self.output_msg(f'Response: {self.read_pending()}')
         
     def monitor_experiment(self, update_freq_ms:int=500, result_interpreted=None):
         
@@ -531,7 +534,10 @@ class SatelliteSimulator:
         '''
         empty = bytearray([0x00] * 16)
         try:
-            return self._i2c.readfrom(SlaveAddress, 16)
+            blk = self._i2c.readfrom(SlaveAddress, 16)
+            if self.echo_blocks:
+                print(','.join(map(lambda x: hex(x) if x>15 else f' {hex(x)}', blk)))
+            return blk
         except Exception as e:
             print(e)
             return empty
@@ -689,7 +695,7 @@ class SatelliteSimulator:
             
             self.wait(35)
                 
-    
+
         
 class PacketConstructor(SatelliteSimulator):
     
@@ -763,6 +769,17 @@ def pingit():
     while True:
         sim.ping()
         time.sleep(0.3)
+        
+def quicktest():
+    sim.experiment_queue(0x80)
+    sim.experiment_queue(1, b'\x03\x00')
+    sim.monitor_experiment()
+    time.sleep(0.3)
+    sim.monitor_experiment()
+    
+    
+    
+    
 
 def random_exp2_params():
     sub_exp = random.randint(0,1)
