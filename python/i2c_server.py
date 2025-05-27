@@ -17,7 +17,7 @@ else:
     from spasic.i2c.device import I2CDevice
     
 import spasic.error_codes as error_codes
-from spasic.experiment.experiment_list import ExperimentsAvailable
+from spasic.experiment.experiment_list import getExperiment
 from ttboard.mode import RPMode
 import spasic.util.watchdog
 
@@ -100,8 +100,9 @@ def process_pending_data():
                     i2cglb.ExpArgs.argument_swap += exp_argument_bytes
             else:
                 exp_id = 0
-                
-            if exp_id not in ExperimentsAvailable:
+            
+            runner = getExperiment(exp_id)
+            if runner is None:
                 i2cglb.ExpArgs.clear_swap()
                 queue_response(rsp.ResponseError(error_codes.UnknownExperiment, bytearray([exp_id])))
                 return 
@@ -129,8 +130,6 @@ def process_pending_data():
             # always ensure we start fresh in ASIC_RP_CONTROL mode,
             # just in case an experiment messed with it.
             DemoBoard.get().mode = RPMode.ASIC_RP_CONTROL
-            
-            runner = ExperimentsAvailable[exp_id]
             try:
                 _thread.start_new_thread(runner, (i2cglb.ExpArgs, i2cglb.ERes,))
             except:
@@ -160,7 +159,8 @@ def process_pending_data():
             else:
                 exp_id = 0
                 
-            if exp_id not in ExperimentsAvailable:
+            runner = getExperiment(exp_id)
+            if runner is None:
                 i2cglb.ExpArgs.clear_swap()
                 queue_response(rsp.ResponseError(error_codes.UnknownExperiment, bytearray([exp_id])))
                 return 
@@ -314,8 +314,8 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     if i2cglb.ERes.running:
         print("Already busy!")
         return False
-        
-    if exp_id not in ExperimentsAvailable:
+    runner = getExperiment(exp_id)
+    if runner is None:
         print("Unknown exp")
         return False
     
@@ -329,8 +329,6 @@ def debug_launch_experiment(exp_id:int, exp_argument_bytes:bytearray=None):
     # always ensure we start fresh in ASIC_RP_CONTROL mode,
     # just in case an experiment messed with it.
     DemoBoard.get().mode = RPMode.ASIC_RP_CONTROL
-    
-    runner = ExperimentsAvailable[exp_id]
     try:
         _thread.start_new_thread(runner, (i2cglb.ExpArgs, i2cglb.ERes,))
     except:
