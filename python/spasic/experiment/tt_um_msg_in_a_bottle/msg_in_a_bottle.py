@@ -32,16 +32,15 @@ def inspect_bottle(_params:ExperimentParameters, response:ExpResult):
     padded = "{:>10}".format(shunted)
 
     # tx payload
-    response.result = bytes(padded, "utf8")
+    response.result = bytearray(padded, "ascii")
 
     return
 
 # @TODO get number from tt_um_rng
-def uncork_bottle(idx: int = random.randint(0, len(messages) - 1)):
+def uncork_bottle(idx: int = None):
+    # prevent out-of-bounds, or get default/random
+    if idx is None or idx < 0 or idx >= len(messages):
+        idx = random.randint(0, len(messages) - 1)
     _idx = idx
-
-    # prevent out-of-bounds
-    if (idx < 0 or idx > len(messages)):
-        _idx = random.randint(0, len(messages) - 1)
 
     return messages[idx]
