@@ -2,6 +2,7 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
+import gc 
 
 ExperimentsAvailable = {
 }
@@ -10,6 +11,9 @@ def getExperiment(eid:int):
     if eid in ExperimentsAvailable:
         return ExperimentsAvailable[eid]
     
+    
+    def_thresh = gc.threshold()
+    gc.threshold(4096)
     if eid == 1:
         import spasic.experiment.tt_um_test.loader
         ExperimentsAvailable[eid] = spasic.experiment.tt_um_test.loader.run_experiment
@@ -67,5 +71,6 @@ def getExperiment(eid:int):
     if eid in ExperimentsAvailable:
         return ExperimentsAvailable[eid]
     
+    gc.threshold(def_thresh)
     return None
 
