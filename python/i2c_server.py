@@ -399,6 +399,10 @@ def main_loop(runtimes:int=0):
             if num_incoming:
                 print(f"{num_incoming} msgs")
                 
+            # since we're polling, and these writes a just 8-bytes (pretty quick
+            # and we're pretty slow), poll again before dealing with out bytes
+            i2c_dev.poll_pending_data()
+                
             # pending output data may be split into
             # little chunks of less that 16 bytes, which is
             # how much gets read out at a time.  We smoosh 
