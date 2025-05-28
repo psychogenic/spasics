@@ -24,7 +24,11 @@ def contributors(params:ExperimentParameters, response:ExpResult, only_lottery:b
             b'Florian S.',
             b'Troyburn',
             b'Mike Bell',
-            b'Ken Pettit'
+            b'Ken Pettit',
+            b'BlueWaterCrystal',
+            b'Jonas Nilsson',
+            b'andrewtron3000',
+            
         ]
     
     if not only_lottery:
