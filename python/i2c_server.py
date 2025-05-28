@@ -2,13 +2,16 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
+
+import gc
+gc.threshold(4096)
+gc.collect()
+ReservedMemoryBlock = bytearray(8192*8)
+
 import time
 import micropython
 import machine
 import _thread
-
-ReservedMemoryBlock = bytearray(8192*8)
-
 from ttboard.demoboard import DemoBoard # keep this
 import i2c_server_globals as i2cglb
 import spasic.cnc.response.response as rsp
@@ -361,6 +364,7 @@ def process_experiment_queue():
     i2c_data_in(3, fakemsg)
     
 def main_loop(runtimes:int=0):
+    global ReservedMemoryBlock
     i2c_dev = get_i2c_device()
     loop_count = 0
     while True and (runtimes == 0 or loop_count < runtimes):
@@ -381,7 +385,7 @@ def main_loop(runtimes:int=0):
                 if not res.running:
                     # experiment is done!
                     i2cglb.ExperimentRun = False 
-                    print("exp done, queue result")
+                    print("edone,q res")
                     queue_response(rsp.ResponseExperiment(res.expid, res.completed, 
                                                           res.exception_type_id, 
                                                           res.result))
@@ -427,7 +431,11 @@ def main_loop(runtimes:int=0):
             # sleep a bit to yield so under the hood
             # magiks can happen if required
             time.sleep_ms(1)
-            ReservedMemoryBlock = None # free her up   
+            if ReservedMemoryBlock is not None:
+                ReservedMemoryBlock = None # free her up  
+                print()
+                gc.collect()
+                gc.threshold(-1)
         except Exception as e:
             print(f'ml ex: {e}')
             # report this unexpected error
