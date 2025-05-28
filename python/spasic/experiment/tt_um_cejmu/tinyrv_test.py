@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from microcotb.types.logic_array import LogicArray
-from microcotb.types.range import Range
 from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
 
@@ -46,35 +44,35 @@ class CEJMU_RV:
         tt.reset_project(False)
 
         # Clearing MISO Pin
-        tt.pins.ui_in.value = 0
+        tt.ui_in[0] = 0
 
         # Setting attributes of the TB
         self.mem = {
-                0: LogicArray(0b00001010000000000000001010010011, Range(31, "downto", 0)),
-                1: LogicArray(0b00000000011000000000001100010011, Range(31, "downto", 0)),
-                2: LogicArray(0b00000000000100000000001110010011, Range(31, "downto", 0)),
-                3: LogicArray(0b00000000000100000000010000010011, Range(31, "downto", 0)),
-                4: LogicArray(0b00000000000100000000010010010011, Range(31, "downto", 0)),
-                5: LogicArray(0b00000000011101000000010010110011, Range(31, "downto", 0)),
-                6: LogicArray(0b00000000100000000000001110110011, Range(31, "downto", 0)),
-                7: LogicArray(0b00000000100100000000010000110011, Range(31, "downto", 0)),
-                8: LogicArray(0b00000000100000101010000000100011, Range(31, "downto", 0)),
-                9: LogicArray(0b00000000010000101000001010010011, Range(31, "downto", 0)),
-                10: LogicArray(0b11111111111100110000001100010011, Range(31, "downto", 0)),
-                11: LogicArray(0b11111110011000000001010011100011, Range(31, "downto", 0)),
-                12: LogicArray(0b00000000000100000000000010010011, Range(31, "downto", 0)),
-                13: LogicArray(0b11111110000000001001111011100011, Range(31, "downto", 0))
+                0: 0b00001010000000000000001010010011,
+                1: 0b00000000011000000000001100010011,
+                2: 0b00000000000100000000001110010011,
+                3: 0b00000000000100000000010000010011,
+                4: 0b00000000000100000000010010010011,
+                5: 0b00000000011101000000010010110011,
+                6: 0b00000000100000000000001110110011,
+                7: 0b00000000100100000000010000110011,
+                8: 0b00000000100000101010000000100011,
+                9: 0b00000000010000101000001010010011,
+                10: 0b11111111111100110000001100010011,
+                11: 0b11111110011000000001010011100011,
+                12: 0b00000000000100000000000010010011,
+                13: 0b11111110000000001001111011100011
         }
 
         self.spi_counter = 18
-        self.spi_addr = LogicArray(0, Range(15, "downto", 0))
-        self.spi_data = LogicArray(0, Range(31, "downto", 0))
+        self.spi_addr = 0
+        self.spi_data = 0
         self.spi_state = "addr"
         self.spi_write = False
 
     def do_spi(self):
-        mosi = self.tt.uo_out.value[0]
-        if self.tt.uo_out.value[2] == 0:
+        mosi = int(self.tt.uo_out[0])
+        if int(self.tt.uo_out[2]) == 0:
             # Recv address
             if self.spi_state == "addr":
                 if self.spi_counter >= 16:
@@ -85,7 +83,7 @@ class CEJMU_RV:
 
                     self.spi_counter -= 1
                 elif self.spi_counter == 0:
-                    self.spi_addr[self.spi_counter] = mosi
+                    self.spi_addr |= mosi
                     self.spi_counter = 32
 
                     if self.spi_write:
@@ -95,7 +93,9 @@ class CEJMU_RV:
                         self.spi_state = "tx"
 
                 else:
-                    self.spi_addr[self.spi_counter] = mosi
+                    self.spi_addr |= mosi
+                    self.spi_addr = self.spi_addr << 1
+
                     self.spi_counter -= 1
 
             # Recv data
@@ -104,12 +104,14 @@ class CEJMU_RV:
                     self.spi_counter -= 1
 
                 elif self.spi_counter == 0:
-                    self.spi_data[self.spi_counter] = mosi
+                    self.spi_data |= mosi
                     self.spi_state = "addr"
 
                     self.mem[int(self.spi_addr)] = self.spi_data
                 else:
-                    self.spi_data[int(self.spi_counter)] = mosi
+                    self.spi_data |= mosi
+                    self.spi_data = self.spi_data << 1
+
                     self.spi_counter -= 1
 
             # Trx data
@@ -118,15 +120,15 @@ class CEJMU_RV:
                     self.spi_counter -= 1
 
                 elif self.spi_counter == 0:
-                    self.tt.ui_in.value[0] = self.mem[int(self.spi_addr)][self.spi_counter]
+                    self.tt.ui_in[0] = get_bit(self.mem[int(self.spi_addr)], self.spi_counter)
                     self.spi_state = "addr"
                 else:
-                    self.tt.ui_in.value[0] = self.mem[int(self.spi_addr)][self.spi_counter]
+                    self.tt.ui_in[0] = get_bit(self.mem[int(self.spi_addr)], self.spi_counter)
                     self.spi_counter -= 1
         else:
             self.spi_counter = 18
-            self.spi_addr = LogicArray(0, Range(15, "downto", 0))
-            self.spi_data = LogicArray(0, Range(31, "downto", 0))
+            self.spi_addr = 0
+            self.spi_data = 0
             self.spi_state = "addr"
             self.spi_write = False
 
@@ -154,7 +156,7 @@ class CEJMU_RV:
         if self.mem.get(addr) is None:
             return 0
         else:
-            return int(self.mem.get(addr))
+            return self.mem.get(addr)
 
 
 def test_cpu(params:ExperimentParameters, response:ExpResult, num_iterations:int=5000):
@@ -163,3 +165,7 @@ def test_cpu(params:ExperimentParameters, response:ExpResult, num_iterations:int
 
     params.tt.clock_project_stop()
     return
+
+
+def get_bit(num, i):
+    return (num >> i) & 1
