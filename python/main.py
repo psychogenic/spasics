@@ -14,8 +14,8 @@ import spasic.settings as sts
 import spasic.ver as ver
 from spasic.util.watchdog import enable_watchdog
 from ttboard.demoboard import DemoBoard
-from microcotb.types.logic_array import LogicArray
-from microcotb.types.range import Range
+# from microcotb.types.logic_array import LogicArray
+# from microcotb.types.range import Range
 
 Debug = False
 tt = DemoBoard.get()
