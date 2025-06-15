@@ -19,7 +19,7 @@ ExperimentsConfig = {
     10: ('tt_um_ttrpg_dice.loader', None),
     11: ('tt_um_msg_in_a_bottle.loader', None),
     12: ('tt_um_cejmu.loader', None),
-    
+    13: ('rp2_temperature.loader', None),
     
     
     
