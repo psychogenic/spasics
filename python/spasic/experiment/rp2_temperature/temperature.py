@@ -72,6 +72,9 @@ def test_temperature(params:ExperimentParameters, response:ExpResult):
         therm.take_reading()
         therm.populate_response(response)
         time.sleep_ms(hundredths_per_iteration * 10)
+        
+        if not params.keep_running:
+            break
 
         if num_iterations > 0:
             num_iterations -= 1
