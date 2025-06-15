@@ -15,19 +15,10 @@ def run_experiment(params:ExperimentParameters, response:ExpResult):
         # import HERE, inside the function, 
         # such that loading all the experiment runners doesn't 
         # eat a ton of memory by pre-importing everything
-        import spasic.experiment.tt_um_MichaelBell_tinyQV.tqv
+        import spasic.experiment.rp2_temperature.temperature
         
         # run that experiment
-        if params.argument_bytes[0] == 0:
-            spasic.experiment.tt_um_MichaelBell_tinyQV.tqv.test_count(params, response)
-        elif params.argument_bytes[0] == 1:
-            spasic.experiment.tt_um_MichaelBell_tinyQV.tqv.test_in_out(params, response)
-        elif params.argument_bytes[0] == 2:
-            spasic.experiment.tt_um_MichaelBell_tinyQV.tqv.test_prime(params, response)
-        elif params.argument_bytes[0] == 3:
-            spasic.experiment.tt_um_MichaelBell_tinyQV.tqv.test_strcpy(params, response)
-        elif params.argument_bytes[0] == 4:
-            spasic.experiment.tt_um_MichaelBell_tinyQV.tqv.test_ruler(params, response)
+        spasic.experiment.rp2_temperature.temperature.test_temperature(params, response)
         
     except Exception as e:
         # an exception occurred... 

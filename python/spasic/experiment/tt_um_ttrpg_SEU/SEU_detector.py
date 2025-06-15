@@ -23,7 +23,7 @@ or be overridden by params[9] when non-zero.
 import time
 from spasic.experiment.experiment_result import ExpResult
 from spasic.experiment.experiment_parameters import ExperimentParameters
-from machine import Pin, I2C
+from machine import Pin, SoftI2C
 
 def test_SEU(params:ExperimentParameters, response:ExpResult, timeout=30):
 
@@ -53,7 +53,11 @@ def test_SEU(params:ExperimentParameters, response:ExpResult, timeout=30):
     tt.clock_project_PWM(10000000)
     tt.uio_oe_pico.value = 0 
     tt.ui_in[0] = 0
-    i2c=I2C(1,scl=Pin(23),sda=Pin(22),freq=100000)
+    i2c=SoftI2C(scl=Pin(23),sda=Pin(22),freq=100000)
+    p=Pin(23)
+    p.init(pull=Pin.PULL_UP)
+    p=Pin(22)
+    p.init(pull=Pin.PULL_UP)
     i2c.writeto_mem(112,0,mem_contents)
     # Stop clock to conserve energy (as if it matters...)
     tt.clock_project_stop()

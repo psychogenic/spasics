@@ -1,10 +1,13 @@
 from spasic.experiment.tt_um_ttrpg_dice.sevenseg import SevenSegmentDecode
 import time
+import random
 
-def roll(tt, button):
+def roll(tt, button,randomize):
     freq = tt.auto_clocking_freq
     tt.ui_in = button
     time.sleep_ms(20)
+    if (randomize != 0):
+        time.sleep_us(random.randint(1,1200))
     tt.ui_in = 0
     time.sleep_us(10)
     tt.clock_project_stop()
