@@ -7,20 +7,20 @@ import gc
 DefaultFuncName = 'run_experiment'
 ModuleParent = 'spasic.experiment'
 ExperimentsConfig = {
-    1: ('tt_um_test.loader', None),
-    2: ('tt_um_fstolzcode.loader', None),
-    3: ('tt_um_oscillating_bones.loader', None),
-    4: ('tt_um_qubitbytes_alive.loader', None),
-    5: ('tt_um_urish_spell.loader', None),
-    6: ('wokwi_universal_gates_049.loader', None),
-    7: ('tt_um_andrewtron3000.loader', None),
-    8: ('tt_um_MichaelBell_tinyQV.loader', None),
-    9: ('tt_um_lisa.loader', None),
+    1:  ('tt_um_test.loader', None),
+    2:  ('tt_um_fstolzcode.loader', None),
+    3:  ('tt_um_oscillating_bones.loader', None),
+    4:  ('tt_um_qubitbytes_alive.loader', None),
+    5:  ('tt_um_urish_spell.loader', None),
+    6:  ('wokwi_universal_gates_049.loader', None),
+    7:  ('tt_um_andrewtron3000.loader', None),
+    8:  ('tt_um_MichaelBell_tinyQV.loader', None),
+    9:  ('tt_um_lisa.loader', None),
     10: ('tt_um_ttrpg_dice.loader', None),
     11: ('tt_um_msg_in_a_bottle.loader', None),
     12: ('tt_um_cejmu.loader', None),
     13: ('rp2_temperature.loader', None),
-    
+    14: ('tt_um_CKPope_top.loader', None),
     
     
     0x80: ('tt_contributors.loader', 'thank_contribs'),
