@@ -633,7 +633,8 @@ class SatelliteSimulator:
             v_maj = payload[2]
             t_now = int.from_bytes(payload[3:7], 'little')
             t_sync = int.from_bytes(payload[7:11], 'little')
-            return (f'INFO v{v_maj}.{v_min}.{v_patch} now:{t_now} sync:{t_sync}', payload[11:])
+            comment = payload[11:]
+            return (f'INFO v{v_maj}.{v_min}.{v_patch} now:{t_now} sync:{t_sync} {comment}', payload[11:])
         
         elif blk[0] == ord('F'):
             val = 0

@@ -130,11 +130,15 @@ class ResponseDataBytes(Response):
         self.append(value)
         
 class ResponseInfo(Response):
-    def __init__(self, v_maj:int, v_min:int, v_patch:int, uptime:int, sync_time:int):
+    def __init__(self, v_maj:int, v_min:int, v_patch:int, v_comment:str, uptime:int, sync_time:int):
         super().__init__()
         bts = bytearray(11)
         bts[0:3] = bytearray([v_patch, v_min, v_maj])
         bts[3:7] = uptime.to_bytes(4, 'little')
         bts[7:11] = sync_time.to_bytes(4, 'little')
+        
+        if len(v_comment):
+            bts += bytearray(v_comment, 'ascii')
+        
         self.append(b'I')
         self.append(bts)

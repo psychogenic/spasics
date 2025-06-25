@@ -16,7 +16,10 @@
 #
 
 
-import spasic.settings as sts 
+try:
+    import spasic.settings as sts
+except:
+    import spasic.settings_safe as sts
 
 try:
     import i2cslave

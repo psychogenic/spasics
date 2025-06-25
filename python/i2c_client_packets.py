@@ -1,6 +1,5 @@
 # translations from spasic.error_codes
 ErrorCodes = {
-    
     0x01: 'Unknown Command',
     0x02: 'Unknown Experiment',
     0x03: 'Busy',

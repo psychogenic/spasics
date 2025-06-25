@@ -5,7 +5,10 @@
 import time
 from machine import Timer, reset, WDT
 
-import spasic.settings as sts
+try:
+    import spasic.settings as sts
+except:
+    import spasic.settings_safe as sts
 
 SystemWatchdogTimerTimeoutMs = 6500
 class SystemWatchdog:

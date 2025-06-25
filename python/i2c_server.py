@@ -6,7 +6,7 @@
 import gc
 gc.threshold(4096)
 gc.collect()
-ReservedMemoryBlock = bytearray(8192*8)
+ReservedMemoryBlock = None
 
 import time
 import micropython
@@ -15,7 +15,11 @@ import _thread
 from ttboard.demoboard import DemoBoard # keep this
 import i2c_server_globals as i2cglb
 import spasic.cnc.response.response as rsp
-import spasic.settings as sts
+
+try:
+    import spasic.settings as sts
+except:
+    import spasic.settings_safe as sts
 
 if sts.DebugUseSimulatedI2CDevice:
     from spasic.i2c.device_sim import I2CDevice
@@ -305,6 +309,8 @@ def begin():
         print("  success")
         return True
     print("  init?")
+    
+    
     return False
 def experiment_terminate():
     if not i2cglb.ERes.running:
@@ -386,6 +392,8 @@ def main_loop(runtimes:int=0):
                     # experiment is done!
                     i2cglb.ExperimentRun = False 
                     print("edone,q res")
+                    gc.collect()
+                    # micropython.mem_info()
                     queue_response(rsp.ResponseExperiment(res.expid, res.completed, 
                                                           res.exception_type_id, 
                                                           res.result))

@@ -178,5 +178,5 @@ def time_sync(payload:bytearray):
 def info():
     t_now = int(time.time())
     t_sync = i2cglb.sync_time_now(t_now)
-    queue_response(rsp.ResponseInfo(ver.major, ver.minor, ver.patch, t_now, t_sync))
+    queue_response(rsp.ResponseInfo(ver.major, ver.minor, ver.patch, ver.comment, t_now, t_sync))
     

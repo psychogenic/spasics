@@ -2,17 +2,63 @@
 @author: Pat Deegan
 @copyright: Copyright (C) 2025 Pat Deegan, https://psychogenic.com
 '''
+
+
+# first thing: MEMORY
+# it's tight, and gets fragmented like crazy, so we reserve chunks and release them post-load
 import gc
 DefaultGCThreshold = gc.threshold()
 gc.threshold(4096)
-reservedBlock = bytearray(8192*4)
+reservedBlocks = []
+def freezeBlocks(num=16):
+    global reservedBlocks
+    bcount = 0
+    try:
+        while bcount < num:
+            # print("Reserving block")
+            blk = bytearray(8192)
+            reservedBlocks.append(blk)
+            bcount += 1
+    except:
+        print(f"Ran out of mem with {len(reservedBlocks)} blocks")
+
+freezeBlocks(12)
+
 import micropython 
 import _thread
 import time 
-import i2c_server 
-import spasic.settings as sts
-import spasic.ver as ver
-from spasic.util.watchdog import enable_watchdog
+
+
+AllLoaded = True
+try:
+    try:
+        import spasic.settings as sts
+    except:
+        print("SAFE SETS!")
+        import spasic.settings_safe as sts
+    
+    import i2c_server 
+    import spasic.ver as ver
+    from spasic.util.watchdog import enable_watchdog
+except:
+    AllLoaded = False 
+    
+if not AllLoaded:
+    import sys 
+    sys.path.insert(0, '/fallback')
+    print("\n\nUSING FALLBACK!?")
+    try:
+        import spasic.settings as sts
+    except:
+        print("SAFE SETS!")
+        import spasic.settings_safe as sts
+    
+    import i2c_server 
+    import spasic.ver as ver
+    ver.comment = 'fb' # report this in 'info' req
+    from spasic.util.watchdog import enable_watchdog
+    
+
 from ttboard.demoboard import DemoBoard
 # from microcotb.types.logic_array import LogicArray
 # from microcotb.types.range import Range
@@ -45,13 +91,17 @@ print(f"Start-up v{ver.major}.{ver.minor}.{ver.patch}! Launching server... (debu
 if not Debug:
     # realdeal, startup i2c services
     i2c_server.begin()
-    
     if sts.PerformPOSTTest:
         print("Performing POST")
         i2c_server.POST()
+    print("post POST")
     micropython.mem_info()
-    reservedBlock = None # free her up
+    reservedBlocks = None # free her up
+    gc.collect()
+    print("post collect")
     micropython.mem_info()
+    print("TT ASICs in SPACE, by Pat Deegan :)")
+    
     i2c_server.main_loop()  
 else:
     print("DEBUG mode -- TESTING ASIC/wiring")
