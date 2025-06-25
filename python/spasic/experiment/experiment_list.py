@@ -9,7 +9,7 @@ ModuleParent = 'spasic.experiment'
 ExperimentsConfig = {
     1:  ('tt_um_test.loader', None),
     2:  ('tt_um_fstolzcode.loader', None),
-    3:  ('tt_um_oscillating_bones.loader', None),
+    3:  ('tt_um_oscillating_bones.loader', None), # non-terminating, explicit abort required
     4:  ('tt_um_qubitbytes_alive.loader', None),
     5:  ('tt_um_urish_spell.loader', None),
     6:  ('wokwi_universal_gates_049.loader', None),
@@ -21,7 +21,9 @@ ExperimentsConfig = {
     12: ('tt_um_cejmu.loader', None),
     13: ('rp2_temperature.loader', None),
     14: ('tt_um_CKPope_top.loader', None),
-    
+    15: ('tt_um_PAL.loader', None),
+    16: ('tt_um_dlmiles_muldiv8.loader', None),
+    17: ('tt_um_dlmiles_muldiv8_sky130faha.loader', None),
     
     0x80: ('tt_contributors.loader', 'thank_contribs'),
     0x81: ('tt_test_experiment.failer', None),

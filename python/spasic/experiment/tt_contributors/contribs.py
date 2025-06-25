@@ -28,7 +28,9 @@ def contributors(params:ExperimentParameters, response:ExpResult, only_lottery:b
             b'BlueWaterCrystal',
             b'Jonas Nilsson',
             b'andrewtron3000',
-            
+            b'Darryl Miles',
+            b'Jonathan Hager',
+            b'Ryan Ech',
         ]
     
     if not only_lottery:
