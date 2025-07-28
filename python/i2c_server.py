@@ -373,6 +373,7 @@ def main_loop(runtimes:int=0):
     global ReservedMemoryBlock
     i2c_dev = get_i2c_device()
     loop_count = 0
+    auto_resp_count = 0
     while True and (runtimes == 0 or loop_count < runtimes):
         loop_count += 1
         try:
@@ -386,17 +387,19 @@ def main_loop(runtimes:int=0):
             # but it's no longer stating itself 
             # as running, then it has completed: queue 
             # the experiment response for output
+            expresult = i2cglb.ERes
+                
             if i2cglb.ExperimentRun:
-                res = i2cglb.ERes
-                if not res.running:
+                if not expresult.running:
                     # experiment is done!
                     i2cglb.ExperimentRun = False 
                     print("edone,q res")
                     gc.collect()
                     # micropython.mem_info()
-                    queue_response(rsp.ResponseExperiment(res.expid, res.completed, 
-                                                          res.exception_type_id, 
-                                                          res.result))
+                    auto_resp_count = 0
+                    queue_response(rsp.ResponseExperiment(expresult.expid, expresult.completed, 
+                                                          expresult.exception_type_id, 
+                                                          expresult.result))
                     
                     process_experiment_queue()
             else:
@@ -430,11 +433,44 @@ def main_loop(runtimes:int=0):
             # if we have some out data, shoot that 
             # off to the device so it can feed it 
             # out to master as it requests it
+            i2c_dev.push_outgoing_data()
+            
+            time_now = time.time()
             if len(out_data):
                 print(f"data out: {out_data}")
                 i2c_dev.queue_outdata(out_data)
-                
-            i2c_dev.push_outgoing_data()
+                i2cglb.LastAutoMessageTime = time_now 
+            else:
+                # nothing queued for output
+                if i2cglb.ExperimentRun: 
+                    # currently running an experiment
+                    if (time_now - i2cglb.LastAutoMessageTime) >= sts.MinDelayForAutoReportSecs:
+                        auto_resp_count += 1
+                        i2cglb.LastAutoMessageTime = time_now 
+                        if auto_resp_count >= 30:
+                            # we skip one to ensure we never end up out of clock sync and grow giant buffer
+                            # don't send, and reset count
+                            auto_resp_count = 0
+                        elif auto_resp_count % sts.AutoReportPeriodInfo == 0:
+                            handlers.info()
+                        elif auto_resp_count % sts.AutoReportPeriodStatus == 0:
+                            queue_response(rsp.ResponseStatus(expresult.running, expresult.expid, expresult.exception_type_id,
+                                              expresult.run_duration, expresult.result))
+                        else:
+                            queue_response(rsp.ResponseExperiment(expresult.expid, expresult.completed, 
+                                                          expresult.exception_type_id, 
+                                                          expresult.result))
+                else:
+                    if (time_now - i2cglb.LastAutoMessageTime) >= (sts.AutoReportIdleMultiplier*sts.MinDelayForAutoReportSecs):
+                        auto_resp_count += 1
+                        i2cglb.LastAutoMessageTime = time_now 
+                        
+                        if auto_resp_count % 2 == 0:
+                            handlers.info()
+                        else:
+                            queue_response(rsp.ResponseStatus(expresult.running, expresult.expid, expresult.exception_type_id,
+                                              expresult.run_duration, expresult.result))
+            
             
             # sleep a bit to yield so under the hood
             # magiks can happen if required

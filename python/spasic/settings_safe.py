@@ -10,6 +10,11 @@ PerformPOSTTest = False
 RaiseAndBreakMainOnException = False
 StartupDelaySeconds = 0 # only for dev, set to 0
 
+MinDelayForAutoReportSecs = 30
+AutoReportIdleMultiplier = 4
+AutoReportPeriodInfo = 15
+AutoReportPeriodStatus = 10
+
 DeviceAddress = 0x56
 I2CSCL = 3
 I2CSDA = 2

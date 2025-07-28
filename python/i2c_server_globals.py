@@ -16,6 +16,7 @@ ExperimentQueue = []
 ExperimentRun = False
 LastTimeSyncMessageTime = -1
 LastTimeSyncValue = 0
+LastAutoMessageTime = 0
 
 def sync_time_now(t_now:int=None):
     if t_now is None:
