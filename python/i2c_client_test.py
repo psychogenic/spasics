@@ -704,8 +704,10 @@ class PacketConstructor(SatelliteSimulator):
         super().__init__(0, 0, 0) 
         self.dump_ascii = dumpAscii
         self.accumulate_packets = accumulate_packets
+        self.extend_packets = True
         self.prefix = prefix
         self._packets = []
+        self.ReadAction = 'READ'
     
     def read_pending(self):
         pass
@@ -716,7 +718,8 @@ class PacketConstructor(SatelliteSimulator):
         return pkts
     
     def read_block(self):
-        pass 
+        self._packets.append(self.ReadAction)
+         
     def fetch_pending(self):
         pass 
     
@@ -734,9 +737,23 @@ class PacketConstructor(SatelliteSimulator):
         if self.accumulate_packets:
             saved_bts = bytearray(bts)
             nb = len(saved_bts)
-            if nb < 8:
-                saved_bts.extend(bytearray(8 - nb))
-            self._packets.append(saved_bts)
+            
+            if self.extend_packets:
+                if nb < 8:
+                    saved_bts.extend(bytearray(8 - nb))
+                
+                self._packets.append(saved_bts)
+            else:
+                i=0
+                if len(self._packets):
+                    while len(self._packets[-1]) < 8 and i<len(saved_bts):
+                        self._packets[-1] += bytearray([saved_bts[i]])
+                        i+=1
+                        
+                for j in range(i, len(saved_bts), 8):
+                    chunk = saved_bts[j:j + 8]
+                    self._packets.append(chunk)
+
                 
         hexbts = bytearray(bts)
         if len(hexbts) < 8:
