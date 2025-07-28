@@ -24,6 +24,7 @@ ExperimentsConfig = {
     15: ('tt_um_PAL.loader', None),
     16: ('tt_um_dlmiles_muldiv8.loader', None),
     17: ('tt_um_dlmiles_muldiv8_sky130faha.loader', None),
+    18: ('tt_um_ttrpg_SEU.loader', None),
     
     0x80: ('tt_contributors.loader', 'thank_contribs'),
     0x81: ('tt_test_experiment.failer', None),
