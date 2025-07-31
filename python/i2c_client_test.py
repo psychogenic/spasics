@@ -459,8 +459,62 @@ class SatelliteSimulator:
         
         
         
-        
-        
+    def run_sequence_csv(self, csvfilepath:str):
+        self.echo_blocks = True
+        with open(csvfilepath, 'r') as csv:
+            lastActionDateTime = time.time()
+            lastReadDateTime = lastActionDateTime
+            nextActionDateTime = lastActionDateTime
+            readInterval = 10
+            self.read_pending()
+            while True:
+                row = csv.readline()
+                if not row:
+                    break 
+                if row[0] == '#':
+                    continue
+                cols = row.split(',')
+                # print(cols)
+                if len(cols) < 4:
+                    print(f"not enough columns in {cols}")
+                    continue 
+                hexbytes = cols[2]
+                try:
+                    
+                    deltasecs = int(float(cols[3]))
+                    # print(f"DELTA S: {cols[3]} {deltasecs}")
+                except Exception as e:
+                    print(f"Error: {e} for {cols[3]}")
+                    continue
+                if hexbytes[0] == '0' and hexbytes[1] == 'x':
+                    bts = bytes.fromhex(hexbytes[2:])
+                else:
+                    print(f"Bad hexbytes {hexbytes}")
+                    continue 
+                nextActionDateTime = lastActionDateTime + deltasecs
+                dtNow = time.time()
+                print(f"Next action at {nextActionDateTime} now is {dtNow} delta is {nextActionDateTime - dtNow}")
+                while dtNow < nextActionDateTime:
+                    if (lastReadDateTime + readInterval) < dtNow:
+                        lastReadDateTime = dtNow
+                        print(f'Read\n{self.fetch_pending()}')
+                    
+                    time.sleep(0.2)
+                    dtNow = time.time()
+                    
+                print(f'Sending bytes: {bts} @ {nextActionDateTime}')
+                self.send(bts)
+                lastActionDateTime = dtNow
+                
+            print("Done processing CSV, waiting for one more read cycle")
+            
+        dtNow = time.time()
+        while dtNow < (lastReadDateTime + readInterval):
+            time.sleep(0.2)
+            dtNow = time.time()
+            
+        time.sleep(0.5)
+        print(self.fetch_pending())
         
     def wait(self, ms:int):
         time.sleep_ms(int(ms))
@@ -708,9 +762,19 @@ class PacketConstructor(SatelliteSimulator):
         self.prefix = prefix
         self._packets = []
         self.ReadAction = 'READ'
-    
-    def read_pending(self):
-        pass
+        self._pending_responses = []
+        self._pending_resp_idx = 0
+        
+    def set_simulated_pending(self, resps):
+        self._pending_responses = []
+        self._pending_resp_idx = 0
+        for r in resps:
+            rbytes = r
+            if type(r) == str:
+                rbytes = bytes.fromhex(r)
+            
+            self._pending_responses.append(rbytes)
+            
     
     def packets(self):
         pkts = self._packets 
@@ -718,10 +782,15 @@ class PacketConstructor(SatelliteSimulator):
         return pkts
     
     def read_block(self):
-        self._packets.append(self.ReadAction)
-         
-    def fetch_pending(self):
-        pass 
+        # self._packets.append(self.ReadAction)
+        if self._pending_resp_idx < len(self._pending_responses):
+            resp = self._pending_responses[self._pending_resp_idx]
+            self._pending_resp_idx += 1
+        else:
+            resp = bytearray(16)
+            
+        return resp
+    
     
     def wait(self, ms:int):
         pass
