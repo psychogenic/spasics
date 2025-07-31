@@ -34,7 +34,9 @@ class CSVGenerator:
     def __init__(self):
         self.tspackets = [] 
         self.current_pack = None 
-        packetdump.extend_packets = False
+        self.include_bytes_column = False
+        packetdump.extend_packets = True
+        
         
         
     def append(self, row, ts):
@@ -96,23 +98,57 @@ class CSVGenerator:
         packetdump.experiment_queue(expid, args)
         
     def writeCSV(self, topath:str):
+        # format_code = "%Y-%m-%d %H:%M:%S"
+        # official format is :
+        # event_id,deadline,1 byte address,8 byte data
+        # with:
+        #  - event_id: I2C_EXPS_EVENT_SEND_COMMAND
+        #  - deadline: 0==immediate,  
+        #               <0 -> scheduled execution, ABS(deadline) second later  
+        #               >0 -> scheduled execution, deadline must be a POSIX timestamp
+        
+        
         with open(topath, "w") as f:
             writer = csv.writer(f, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            writer.writerow(['#timestamp', 'action', 'write (bytes)', 'write (hex)', 'read action'])
+            if self.include_bytes_column:
+                header = ['#timestamp', 'action', 'write (bytes)', 'write (hex)', 'delta (s)']
+            else:
+                header = ['#timestamp', 'action', 'write (hex)', 'delta (s)']
+                
+            writer.writerow(header)
+            
+            lastDatetime = None 
             for tspack in self.tspackets:
-                writepacks = []
-                hexpacks = []
+                writepacks = ''
+                hexpacks = ''
+                
+                curDateTime = tspack.timestamp # datetime.datetime.strptime(, format_code)
+                delta_s = 0
+                if lastDatetime is not None:
+                    deltaT = curDateTime - lastDatetime
+                    delta_s = deltaT.total_seconds()
+                
+                lastDatetime = curDateTime
+                
+                txpacket_count = 0
                 for p in tspack.packets:
                     if type(p) == bytearray:
-                        hexpacks.append(f'0x{p.hex()}')
-                    writepacks.append(p)
-                        
-                if len(writepacks) == 1:
-                    writepacks = writepacks[0]
-                    hexpacks = hexpacks[0]
-
-                writer.writerow([tspack.timestamp, tspack.action, writepacks, hexpacks])
+                        hexpacks = f'0x{p.hex()}'
+                    writepacks = p
+                    if txpacket_count:
+                        action = f'{tspack.action} (cont)'
+                    else:
+                        action = tspack.action
+                    
+                    if self.include_bytes_column:
+                        row = [tspack.timestamp, action, writepacks, hexpacks, delta_s]
+                    else:
+                        row = [tspack.timestamp, action, hexpacks, delta_s]
+                    
+                    writer.writerow(row)
+                    
+                    txpacket_count += 1
 
     def get_experiment_and_parms(self, row):
         bts = None
