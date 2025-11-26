@@ -20,6 +20,8 @@ from i2c_client_test import packetdump
 import csv 
 import datetime
 
+DeviceBusIdDefault = 0x56
+
 class TSPacket:
     def __init__(self, action, ts, packets=None):
         self.action = action
@@ -31,11 +33,13 @@ class TSPacket:
     
 class CSVGenerator:
     
-    def __init__(self):
+    def __init__(self, device_bus_id:int=DeviceBusIdDefault):
         self.tspackets = [] 
         self.current_pack = None 
         self.include_bytes_column = False
+        self.hexpack_little_endian = True
         packetdump.extend_packets = True
+        self.bus_id = device_bus_id
         
         
         
@@ -85,7 +89,11 @@ class CSVGenerator:
         
     def ping(self, timestamp, row):
         self.append(row, timestamp)
-        packetdump.ping()
+        cnt = self.get_parms(row)
+        if cnt:
+            packetdump.ping(cnt[0])
+        else:
+            packetdump.ping()
         
         
     def info(self, timestamp, row):
@@ -107,17 +115,20 @@ class CSVGenerator:
         #               <0 -> scheduled execution, ABS(deadline) second later  
         #               >0 -> scheduled execution, deadline must be a POSIX timestamp
         
-        
+        event_id = 'I2C_EXPS_EVENT_SEND_COMMAND'
+        bus_address = hex(self.bus_id)
+        self.bus_id
         with open(topath, "w") as f:
             writer = csv.writer(f, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            if self.include_bytes_column:
-                header = ['#timestamp', 'action', 'write (bytes)', 'write (hex)', 'delta (s)']
+            if self.hexpack_little_endian:
+                hexheader = 'write (hex, little-end)'
             else:
-                header = ['#timestamp', 'action', 'write (hex)', 'delta (s)']
-                
+                hexheader = 'write (hex, big-end)'
+            header = ['#evend_id', 'deadline', 'address', hexheader]
             writer.writerow(header)
             
+            firstDatetime = None 
             lastDatetime = None 
             for tspack in self.tspackets:
                 writepacks = ''
@@ -125,8 +136,10 @@ class CSVGenerator:
                 
                 curDateTime = tspack.timestamp # datetime.datetime.strptime(, format_code)
                 delta_s = 0
-                if lastDatetime is not None:
-                    deltaT = curDateTime - lastDatetime
+                if firstDatetime is None:
+                    firstDatetime = curDateTime
+                else:
+                    deltaT = curDateTime - firstDatetime
                     delta_s = deltaT.total_seconds()
                 
                 lastDatetime = curDateTime
@@ -134,6 +147,8 @@ class CSVGenerator:
                 txpacket_count = 0
                 for p in tspack.packets:
                     if type(p) == bytearray:
+                        if self.hexpack_little_endian:
+                            p = bytearray(list(reversed(p)))
                         hexpacks = f'0x{p.hex()}'
                     writepacks = p
                     if txpacket_count:
@@ -141,25 +156,19 @@ class CSVGenerator:
                     else:
                         action = tspack.action
                     
+                    deadline = f'-{int(delta_s)}' if delta_s else '0'
+                    
                     if self.include_bytes_column:
                         row = [tspack.timestamp, action, writepacks, hexpacks, delta_s]
                     else:
-                        row = [tspack.timestamp, action, hexpacks, delta_s]
+                        row = [event_id, deadline, bus_address, hexpacks]
                     
                     writer.writerow(row)
                     
                     txpacket_count += 1
 
-    def get_experiment_and_parms(self, row):
-        bts = None
-        expid = None
-        if len(row['experiment']):
-            try:
-                expid = int(row['experiment'])
-                print(f"EXPID {expid}")
-            except:
-                print(f"Invalid experiment {row['experiment']}")
-        
+    def get_parms(self, row):
+        bts = ''
         if len(row['param']):
             prm = row['param']
             if prm[0] == 'b' and prm[1] == "'":
@@ -169,9 +178,20 @@ class CSVGenerator:
             else:
                 print(f"INVALID PARAM {prm}")
                 
+        return bts
+
+    def get_experiment_and_parms(self, row):
+        expid = None
+        if len(row['experiment id']):
+            try:
+                expid = int(row['experiment id'])
+                print(f"EXPID {expid}")
+            except:
+                print(f"Invalid experiment {row['experiment id']}")
+        bts = self.get_parms(row)
         return (expid, bts)
 def generate(csvfile:str):
-    #expects start datetime,    delta ms,    action,    experiment,    param,    packet datetime
+    #expects start datetime,    delta ms,    action,    experiment,    param,    experiment id, comment, packet datetime
     # with action being one of:
     # Run
     # Abort
