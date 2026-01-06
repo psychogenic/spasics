@@ -199,7 +199,7 @@ class CSVGenerator:
                 print(f"Invalid experiment {row['experiment id']}")
         bts = self.get_parms(row)
         return (expid, bts)
-def generate(csvfile:str):
+def generate(csvfile:str) -> CSVGenerator:
     #expects start datetime,    delta ms,    action,    experiment,    param,    experiment id, comment, packet datetime
     # with action being one of:
     # Run
@@ -243,4 +243,34 @@ def generate(csvfile:str):
                 
     return generator
 
-                                
+
+import argparse 
+def getArgs():
+    parser = argparse.ArgumentParser(
+        description="Telemetry parser"
+    )
+    
+    parser.add_argument(
+        'inputfile', 
+        type=str,
+        help='The path to the input CSV to process'
+    )
+    
+    
+    parser.add_argument(
+        'outputfile', 
+        type=str,
+        help='The path to the output CSV to generate for BME'
+    )
+    
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = getArgs()
+    if args.inputfile == args.outputfile:
+        print("input should NOT be the same as output")
+    else:
+        gen = generate(args.inputfile)
+        print(f'Read in {args.inputfile}, writing {args.outputfile}')
+        gen.writeCSV(args.outputfile)
+        
