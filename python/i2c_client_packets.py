@@ -34,7 +34,7 @@ class ClientPacketGenerator:
     
     def ping(self, count:int, extra_payload=b'PNG'):
         bts = bytearray([ord('P'), count % 256])
-        bts += extra_payload
+        bts += extra_payload[:7]
         return bts
     
     def info(self):

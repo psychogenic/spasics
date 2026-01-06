@@ -135,7 +135,7 @@ class SatelliteSimulator:
             print(msg)
         
     
-    def ping(self, cnt:int=None):
+    def ping(self, cnt:int=None, payload_bytes:bytes=b'PNG'):
         '''
             ping -- heartbeat/function check
             @param count: ping count
@@ -145,7 +145,7 @@ class SatelliteSimulator:
             self._ping_count += 1
             cnt = self._ping_count
         self.output_msg(f"Sending ping {cnt}")
-        self.send(self.packet_gen.ping(cnt))
+        self.send(self.packet_gen.ping(cnt, payload_bytes))
         self.wait(ResponseDelayMs)
         self.print_response()
         
@@ -465,6 +465,7 @@ class SatelliteSimulator:
             lastActionDateTime = time.time()
             lastReadDateTime = lastActionDateTime
             nextActionDateTime = lastActionDateTime
+            firstActionDateTime = lastActionDateTime
             readInterval = 10
             self.read_pending()
             while True:
@@ -475,13 +476,14 @@ class SatelliteSimulator:
                     continue
                 cols = row.split(',')
                 # print(cols)
+                #evend_id,deadline,address,write (hex)
                 if len(cols) < 4:
                     print(f"not enough columns in {cols}")
                     continue 
-                hexbytes = cols[2]
+                hexbytes = cols[3]
                 try:
                     
-                    deltasecs = int(float(cols[3]))
+                    deltasecs = abs(int(float(cols[1])))
                     # print(f"DELTA S: {cols[3]} {deltasecs}")
                 except Exception as e:
                     print(f"Error: {e} for {cols[3]}")
@@ -491,7 +493,7 @@ class SatelliteSimulator:
                 else:
                     print(f"Bad hexbytes {hexbytes}")
                     continue 
-                nextActionDateTime = lastActionDateTime + deltasecs
+                nextActionDateTime = firstActionDateTime + deltasecs
                 dtNow = time.time()
                 print(f"Next action at {nextActionDateTime} now is {dtNow} delta is {nextActionDateTime - dtNow}")
                 while dtNow < nextActionDateTime:
@@ -509,7 +511,7 @@ class SatelliteSimulator:
             print("Done processing CSV, waiting for one more read cycle")
             
         dtNow = time.time()
-        while dtNow < (lastReadDateTime + readInterval):
+        while dtNow < (firstActionDateTime + readInterval):
             time.sleep(0.2)
             dtNow = time.time()
             
@@ -564,6 +566,7 @@ class SatelliteSimulator:
             send raw bytes over to device
         '''
         try:
+            print(f"Writing to slave: 0x{bts.hex()}")
             self._i2c.writeto(SlaveAddress, bts)
         except Exception as e:
             print(e)

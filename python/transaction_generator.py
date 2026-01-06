@@ -91,7 +91,11 @@ class CSVGenerator:
         self.append(row, timestamp)
         cnt = self.get_parms(row)
         if cnt:
-            packetdump.ping(cnt[0])
+            if len(cnt) > 1:
+                packetdump.ping(cnt[0], cnt[1:])
+            else:
+                packetdump.ping(cnt[0])
+                
         else:
             packetdump.ping()
         
@@ -174,7 +178,12 @@ class CSVGenerator:
             if prm[0] == 'b' and prm[1] == "'":
                 bts = eval(prm)
             elif prm[0] == '0' and prm[1] == 'x':
-                bts = bytearray.fromhex(prm[2:])
+                try:
+                    bts = bytearray.fromhex(prm[2:])
+                except Exception as e:
+                    print(e)
+                    print(f'Problem in {prm[2:]}')
+                    raise e
             else:
                 print(f"INVALID PARAM {prm}")
                 
