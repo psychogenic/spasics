@@ -3,12 +3,87 @@ from i2c_client_test import packetdump
 import argparse
 from spasic.cnc.response.response import *
 
+class ReportInterpreter:
+    
+    @classmethod
+    def parseResult(cls, exp_id:int, results_bytes:bytearray):
+        return results_bytes
+
+    @classmethod
+    def parseStatus(cls, exp_id:int, results_bytes:bytearray):
+        return cls.parseResult(exp_id, results_bytes)
+
+
+class ResponseOutput:
+    def __init__(self):
+        pass 
+    
+    def handle(self, resp:Response, timestamp:str=None):
+        
+        if not isinstance(resp, Response):
+            if resp is None:
+                return 
+            raise ValueError(f'Passed "{resp}" which is not a Response')
+        
+        cname = resp.__class__.__name__
+        fname = f'handle_{cname}'
+        if not hasattr(self, fname):
+            print(f'Do not know how to parse {cname}: {resp}')
+            return
+
+        getattr(self, fname)(resp, timestamp)
+        
+    
+class ResponsePrinter(ResponseOutput):
+    
+    def output(self, msg:str, timestamp:str=None):
+        if timestamp is None:
+            timestamp = ''
+        else:
+            timestamp = f'{timestamp}: '
+            
+        print(f'{timestamp}{msg}')
+        
+    def handle_ResponseOK(self, _resp:ResponseOK, timestamp:str=None):
+        self.output('OK', timestamp)
+        
+    
+    def handle_ResponseOKMessage(self, resp:ResponseOKMessage, timestamp:str=None):
+        try:
+            self.output(f'OK {resp.message.decode("ascii")}', timestamp)
+        except UnicodeDecodeError:
+            self.output(f'OK {resp.message}', timestamp)
+            
+        
+    def handle_ResponseError(self, resp:ResponseError, timestamp:str=None):
+        self.output('ERROR {resp.code} {resp.message}', timestamp)
+
+    def handle_ResponseExperiment(self, resp:ResponseExperiment, timestamp:str=None):
+        result = ReportInterpreter.parseResult(resp.exp_id, resp.result)
+        
+        if resp.exception_id:
+            self.output(f'EXPERIMENT {resp.exp_id} with EXCEPTION {resp.exception_id} completed:{resp.completed} result:{result}', timestamp)
+        else:
+            self.output(f'EXPERIMENT {resp.exp_id} completed:{resp.completed} result:{result}', timestamp)
+            
+            
+
+    def handle_ResponseStatus(self, resp:ResponseStatus, timestamp:str=None):
+        result = ReportInterpreter.parseStatus(resp.exp_id, resp.result)
+        if resp.exception_id:
+            self.output(f'STATUS EXP {resp.exp_id} with EXCEPTION {resp.exception_id} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
+        else:
+            self.output(f'STATUS EXP {resp.exp_id} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
+        
+
 class TelemetryParser:
     
     def __init__(self):
         pass 
     
     def dump(self, csvfile:str):
+        
+        responseParser = ResponsePrinter()
         with open(csvfile) as f:
             reader = csv.DictReader(f, delimiter=',', quotechar='"')
             expname_colname = None
@@ -48,6 +123,7 @@ class TelemetryParser:
                 
                 try:
                     bts = bytes.fromhex(row[payload_colname])
+                    print(f'{row[payload_colname]} -> {bts}')
                 except ValueError:
                     #print(f"Could not get bits from {row[payload_colname]}\nSkipping")
                     continue
@@ -60,8 +136,8 @@ class TelemetryParser:
                     if not isinstance(parsedvals, list):
                         parsedvals = [parsedvals]
                     for resp in parsedvals:
-                        if resp is not None:
-                            print(f"{row[timestamp_colname]}:{resp}")
+                        # print(resp)
+                        responseParser.handle(resp, row[timestamp_colname])
 def getArgs():
     parser = argparse.ArgumentParser(
         description="Telemetry parser"

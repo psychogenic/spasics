@@ -148,7 +148,7 @@ class ResponseExperiment(Response):
     Header = b'\x09'
     def __init__(self, exp_id:int, completed:bool, exception_id:int, result:bytearray):
         super().__init__()
-        self.expid = exp_id
+        self.exp_id = exp_id
         self.completed = completed
         self.exception_id = exception_id
         self.result = result
@@ -170,7 +170,7 @@ class ResponseExperiment(Response):
         return blk[3] + 4
     
     def extractPayload(self, blk:bytearray):
-        self.expid = blk[0]
+        self.exp_id = blk[0]
         self.completed = True if blk[1] else False 
         self.exception_id = blk[2]
         result_len = blk[3]
@@ -181,8 +181,8 @@ class ResponseExperiment(Response):
 
     def __str__(self):
         if self.exception_id:
-            return f'<EXPERIMENT {self.expid} completed:{self.completed} EXCEPTION:{self.exception_id} {self.result}>'
-        return f'<EXPERIMENT {self.expid} completed:{self.completed} result:{self.result}>'
+            return f'<EXPERIMENT {self.exp_id} completed:{self.completed} EXCEPTION:{self.exception_id} {self.result}>'
+        return f'<EXPERIMENT {self.exp_id} completed:{self.completed} result:{self.result}>'
 class ResponseFile(Response):
     Header = b'F'
     def __init__(self, rtype:bytes, value:bytearray=None):
