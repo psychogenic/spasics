@@ -71,6 +71,7 @@ import os
 SlaveAddress = 0x56
 ResponseDelayMs = 50
 
+from spasic.cnc.response.response import ResponseFactory
 from i2c_client_packets import ClientPacketGenerator, ErrorCodes
 
 def error_to_string(error_code:int):
@@ -599,8 +600,12 @@ class SatelliteSimulator:
             print(e)
             return empty
     
-        
+    
     def _parse_block(self, blk):
+        
+        return ResponseFactory.constructFrom(blk)
+        
+    def _parse_blockOLD(self, blk):
         if not len(blk):
             return (None, b'')
         if blk == bytearray([0]*len(blk)):
@@ -714,7 +719,7 @@ class SatelliteSimulator:
     def fetch_pending(self):
         '''
             read blocks of 16 bytes until you hit 
-            and "empty" response (all 0xff)
+            and "empty" response (all 0x00)
             and interpret the data
         '''
         empty = bytearray([0x00]*16)
@@ -742,6 +747,11 @@ class SatelliteSimulator:
                 while left_overs and len(left_overs):
                         try:
                             (parsed_resp, left_overs) = self._parse_block(left_overs)
+                            if parsed_resp is None:
+                                more_stuff = self.read_block()
+                                if more_stuff is None or not len(more_stuff) or more_stuff == bytearray([0]*len(more_stuff)):
+                                    return rcvd
+                                left_overs += more_stuff
                         except:
                             print(f"Issue parsing block (partial?) {left_overs}")
                             self.wait(35)
@@ -768,6 +778,8 @@ class PacketConstructor(SatelliteSimulator):
         self._pending_responses = []
         self._pending_resp_idx = 0
         
+    def have_pending(self):
+        return len(self._pending_responses) - self._pending_resp_idx > 0
     def set_simulated_pending(self, resps):
         self._pending_responses = []
         self._pending_resp_idx = 0
@@ -777,6 +789,7 @@ class PacketConstructor(SatelliteSimulator):
                 rbytes = bytes.fromhex(r)
             
             self._pending_responses.append(rbytes)
+            
             
     
     def packets(self):

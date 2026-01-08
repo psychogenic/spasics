@@ -1,6 +1,7 @@
 import csv
 from i2c_client_test import packetdump 
 import argparse
+from spasic.cnc.response.response import *
 
 class TelemetryParser:
     
@@ -13,44 +14,54 @@ class TelemetryParser:
             expname_colname = None
             payload_colname = None
             timestamp_colname = None
+            
+            AllRecievedBytes = []
             for row in reader:
-                if expname_colname is None:
+                if payload_colname is None:
                     for cname in ['experiment name', 'teamname']:
                         if cname in row:
                             expname_colname = cname 
                             
                     if expname_colname is None:
-                        raise ValueError('could not determine experiment name column header')
+                        print('could not determine experiment name column header')
                         
-                    for cname in ['payload', 'telemetry']:
+                    for cname in ['payload', 'telemetry', 'I2C_EXPS_STATUS_6']:
                         if cname in row:
                             payload_colname = cname 
                     
                     if payload_colname is None:
                         raise ValueError('could not determine payload column header')
                         
-                    for cname in ['UTC', 'timestampDate']:
+                    for cname in ['UTC', 'timestampDate', 'Timestamp']:
                         if cname in row:
                             timestamp_colname = cname 
                             
                     if timestamp_colname is None:
                         raise ValueError('could not determine timestamp column header')
                         
-                        
-                        
-                if not len(row[expname_colname]):
-                    continue 
-                if not len(row[payload_colname]):
-                    continue 
-                if row[expname_colname] != 'spasic':
+                
+                if expname_colname is not None and row[expname_colname] != 'spasic':
                     continue
                 
-                packetdump.set_simulated_pending([bytes.fromhex(row[payload_colname])])
+                if row[payload_colname] is None or not len(row[payload_colname]):
+                    continue 
                 
-                parsedvals = packetdump.fetch_pending()
-                if len(parsedvals):
-                    print(f'{row[timestamp_colname]}: {parsedvals}')                        
-
+                try:
+                    bts = bytes.fromhex(row[payload_colname])
+                except ValueError:
+                    #print(f"Could not get bits from {row[payload_colname]}\nSkipping")
+                    continue
+                
+                # AllRecievedBytes.append(bts)
+                packetdump.set_simulated_pending([bts])
+                
+                while packetdump.have_pending():
+                    parsedvals = packetdump.fetch_pending()
+                    if not isinstance(parsedvals, list):
+                        parsedvals = [parsedvals]
+                    for resp in parsedvals:
+                        if resp is not None:
+                            print(f"{row[timestamp_colname]}:{resp}")
 def getArgs():
     parser = argparse.ArgumentParser(
         description="Telemetry parser"
