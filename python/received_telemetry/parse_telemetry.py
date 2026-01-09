@@ -20,6 +20,8 @@ from i2c_client_test import packetdump
 import argparse
 from spasic.cnc.response.response import *
 from received_telemetry.report_interpreter import StatusResultParserMap, ResultParserMap
+from spasic.experiment.experiment_list import ExperimentsConfig
+from spasic.experiment.experiment_result import exception_id_to_type
 class ReportInterpreter:
     
     @classmethod
@@ -74,6 +76,20 @@ class ResponsePrinter(ResponseOutput):
             
         print(f'{timestamp}{msg}')
         
+    def experiment_string(self, experiment_id:int):
+        if experiment_id in ExperimentsConfig:
+            expname = ExperimentsConfig[experiment_id][0].replace('.loader', '')
+            
+            return f'{expname} [{experiment_id}]'
+        
+        return str(experiment_id)
+    
+    def exception_type_string(self, exception_id:int):
+        etype = exception_id_to_type(exception_id)
+        if etype is not None:
+            return etype.__name__
+        return 'n/a'
+        
     def handle_ResponseOK(self, _resp:ResponseOK, timestamp:str=None):
         self.output('OK', timestamp)
         
@@ -86,24 +102,24 @@ class ResponsePrinter(ResponseOutput):
             
         
     def handle_ResponseError(self, resp:ResponseError, timestamp:str=None):
-        self.output('ERROR {resp.code} {resp.message}', timestamp)
+        self.output(f'ERROR {resp.code} {resp.message}', timestamp)
 
     def handle_ResponseExperiment(self, resp:ResponseExperiment, timestamp:str=None):
         result = ReportInterpreter.parseResult(resp.exp_id, resp.result)
         
         if resp.exception_id:
-            self.output(f'EXPERIMENT {resp.exp_id} with EXCEPTION {resp.exception_id} completed:{resp.completed} result:{result}', timestamp)
+            self.output(f'EXPERIMENT {self.experiment_string(resp.exp_id)} with EXCEPTION {self.exception_type_string(resp.exception_id)} completed:{resp.completed} result:{result}', timestamp)
         else:
-            self.output(f'EXPERIMENT {resp.exp_id} completed:{resp.completed} result:{result}', timestamp)
+            self.output(f'EXPERIMENT {self.experiment_string(resp.exp_id)} completed:{resp.completed} result:{result}', timestamp)
             
             
 
     def handle_ResponseStatus(self, resp:ResponseStatus, timestamp:str=None):
         result = ReportInterpreter.parseStatus(resp.exp_id, resp.result)
         if resp.exception_id:
-            self.output(f'STATUS EXP {resp.exp_id} with EXCEPTION {resp.exception_id} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
+            self.output(f'STATUS EXP {self.experiment_string(resp.exp_id)} with EXCEPTION {self.exception_type_string(resp.exception_id)} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
         else:
-            self.output(f'STATUS EXP {resp.exp_id} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
+            self.output(f'STATUS EXP {self.experiment_string(resp.exp_id)} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
         
 
     def handle_ResponseInfo(self, resp:ResponseStatus, timestamp:str=None):

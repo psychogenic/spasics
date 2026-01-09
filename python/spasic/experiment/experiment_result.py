@@ -4,6 +4,36 @@
 '''
 import time
 
+AllExceptions = [
+            ArithmeticError, # 0
+            AssertionError,
+            AttributeError,
+            EOFError,
+            Exception,
+            ImportError, # 5
+            IndentationError,
+            IndexError,
+            KeyError,
+            KeyboardInterrupt,
+            LookupError, # 10
+            MemoryError,
+            NameError,
+            NotImplementedError,
+            OSError,
+            OverflowError, # 15
+            RuntimeError,
+            StopIteration,
+            SyntaxError,
+            SystemExit,
+            TypeError,  # 20
+            ValueError,
+            ZeroDivisionError
+        ]
+
+def exception_id_to_type(except_id:int):
+    if except_id >= len(AllExceptions):
+        return None 
+    return AllExceptions[except_id]
 class ExpResult:
     def __init__(self):
         self.result = bytearray()
@@ -63,33 +93,8 @@ class ExpResult:
             return 0xfe 
             
         ec = ex.__class__ 
-        allExceptions = [
-            ArithmeticError, # 0
-            AssertionError,
-            AttributeError,
-            EOFError,
-            Exception,
-            ImportError, # 5
-            IndentationError,
-            IndexError,
-            KeyError,
-            KeyboardInterrupt,
-            LookupError, # 10
-            MemoryError,
-            NameError,
-            NotImplementedError,
-            OSError,
-            OverflowError, # 15
-            RuntimeError,
-            StopIteration,
-            SyntaxError,
-            SystemExit,
-            TypeError,  # 20
-            ValueError,
-            ZeroDivisionError
-        ]
-        for i in range(len(allExceptions)):
-            if ec == allExceptions[i]:
+        for i in range(len(AllExceptions)):
+            if ec == AllExceptions[i]:
                 return i + 1
         
         return 0xff

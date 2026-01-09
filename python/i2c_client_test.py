@@ -71,8 +71,14 @@ import os
 SlaveAddress = 0x56
 ResponseDelayMs = 50
 
+SimI2CSCL= 7
+SimI2CSDA = 6
+SimI2CDevice = 1
+
 from spasic.cnc.response.response import ResponseFactory
 from i2c_client_packets import ClientPacketGenerator, ErrorCodes
+
+
 
 def error_to_string(error_code:int):
     if error_code in ErrorCodes:
@@ -116,11 +122,19 @@ class IncomingDataStream:
     def __init__(self):
         self._data = bytearray()
         
+    def reset(self):
+        self._data = bytearray()
+        
+    def clone(self):
+        return bytearray(self._data)
     def extend(self, withdata:bytearray):
         self._data.extend(withdata)
         
     def consume(self, length:int):
-        del self._data[:length]
+        try:
+            del self._data[:length]
+        except TypeError:
+            self._data = self._data[length:]
         
     def __len__(self):
         return len(self._data)
@@ -145,10 +159,10 @@ class SatelliteSimulator:
         data coming back.
     '''
     #def __init__(self, scl:int=25, sda:int=24, baudrate:int=100000):
-    def __init__(self, scl:int=23, sda:int=22, baudrate:int=100000, run_quiet:bool=False):
+    def __init__(self, scl:int=SimI2CSCL, sda:int=SimI2CSDA, i2cdev:int=SimI2CDevice, baudrate:int=100000, run_quiet:bool=False):
         self._i2c = None
         if baudrate != 0:
-            self._i2c = machine.I2C(1, scl=scl, sda=sda, freq=baudrate)
+            self._i2c = machine.I2C(i2cdev, scl=scl, sda=sda, freq=baudrate)
         self._start_time = time.time()
         self._ping_count = 0
         self.packet_gen = ClientPacketGenerator()
@@ -176,7 +190,7 @@ class SatelliteSimulator:
         self.output_msg(f"Sending ping {cnt}")
         self.send(self.packet_gen.ping(cnt, payload_bytes))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     def launch_and_monitor(self, experiment_id:int, args:bytearray=None, interpreter=None, update_freq_ms:int=500):
         self.output_msg("Launching experiment, and monitoring")
@@ -191,7 +205,7 @@ class SatelliteSimulator:
         '''
         self.send(self.packet_gen.info())
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     
     def run_experiment_now(self, experiment_id:int, args:bytearray=None):
@@ -205,13 +219,13 @@ class SatelliteSimulator:
         self.exp_result.reset()
         self.send_all(self.packet_gen.run_experiment_now_list(experiment_id, args))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     def experiment_queue(self, experiment_id:int, args:bytearray=None):
         self.output_msg(f"Queueing experiment {experiment_id}")
         self.send_all(self.packet_gen.experiment_queue(experiment_id, args))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
     
     def status(self):
         '''
@@ -222,7 +236,7 @@ class SatelliteSimulator:
         self.output_msg("Requesting status")
         self.send(self.packet_gen.status())
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     def experiment_current_results(self):
         '''
@@ -233,7 +247,7 @@ class SatelliteSimulator:
         self.output_msg("Requesting experiment current res")
         self.send(self.packet_gen.experiment_result())
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
     
     def abort(self):
         '''
@@ -242,7 +256,7 @@ class SatelliteSimulator:
         self.output_msg("Requesting experiment abort")
         self.send(self.packet_gen.abort())
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
         
     def time_sync(self, time_value:int=None):
@@ -268,7 +282,7 @@ class SatelliteSimulator:
         self.output_msg(f"Sending reboot command")
         self.send(self.packet_gen.reboot(safe_mode))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     
     def mkdir(self, dirpath:str):
@@ -285,7 +299,7 @@ class SatelliteSimulator:
         
         self.send_all(packets)
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     def lsdir(self, dirpath:str):
         '''
@@ -301,7 +315,7 @@ class SatelliteSimulator:
         self.print_response()
         self.send(self.packet_gen.lsdir(varid))
         self.wait(ResponseDelayMs * 2)
-        self.print_response()
+        return self.print_response()
         
     
     def upload_file(self, srcfile:str, destpath:str, swap_name:str='/mytmp.txt'):
@@ -387,7 +401,7 @@ class SatelliteSimulator:
         self.send(self.packet_gen.checksum(varid))
         self.output_msg("Getting checksum... give it a sec")
         self.wait(ResponseDelayMs*4)
-        self.print_response()
+        return self.print_response()
         
     def file_move(self, srcpath:str, destpath:str):
         '''
@@ -413,7 +427,7 @@ class SatelliteSimulator:
         self.output_msg("Issuing mv")
         self.send(self.packet_gen.file_move(srcid, destid))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     
         
@@ -426,20 +440,21 @@ class SatelliteSimulator:
         self.output_msg(f"Delete {fpath}.  Setting up...")
         self.send_all(self.packet_gen.setvar_list(srcid, fpath))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        v = self.print_response()
         self.send(self.packet_gen.file_unlink(srcid))
+        return v
         
     def variable_get(self, v:int):
         self.output_msg(f"Get variable {v}")
         self.send(self.packet_gen.getvar(v))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     def variable_set(self, v:int, value:str):
         self.output_msg(f"Set variable {v} to '{value}'")
         self.send_all(self.packet_gen.setvar_list(v, value))
         self.wait(ResponseDelayMs)
-        self.print_response()
+        return self.print_response()
         
     
     
@@ -468,28 +483,53 @@ class SatelliteSimulator:
         
     def read_pending(self):
         v = self.fetch_pending()
-        if v == 'EMPTY':
-            return v 
-        
         self.wait(20)
         v2 = self.fetch_pending()
-        if v2 == 'EMPTY':
-            return v 
-        
-        if isinstance(v, list):
-            if isinstance(v2, list):
-                for otherval in v2:
-                    v.append(otherval)
+        if v2 is not None and len(v):
+            if isinstance(v, list):
+                if isinstance(v2, list):
+                    v.extend(v2)
+                else:
+                    v.append(v2)
+                return v
             else:
-                v.append(v2)
-        else:
-            return [v, v2]
+                return [v, v2]
+        
+        
+    def csv_sequence_get_responses(self, outfile):
+        self.read_block()
+        pending_data = None 
+        if outfile is not None:
+            pending_data = self.incoming_data.clone()
+        responses = self.fetch_pending()
+        blkidx = 0
+        if outfile is not None:
+            while len(pending_data) >= (blkidx*16)+16:
+                start = blkidx*16
+                rawdata = pending_data[start:start+16]
+                t = time.gmtime()
+                tstr = f"{t[0]}-{t[1]:02d}-{t[2]:02d} {t[3]:02d}:{t[4]:02d}:{t[5]:02d}"
+                csvline = ','.join([str(time.time()), tstr, rawdata.hex()])
+                print(csvline)
+                outfile.write(f'{csvline}\n')
+                
+                blkidx += 1
+                
+        return responses
         
         
         
+    def run_sequence_csv(self, csvfilepath:str, output_csv:str=None):
+        #evend_id,deadline,address,"write (hex, little-end)"
+        self.echo_blocks = False
+        littleEndian = True
         
-    def run_sequence_csv(self, csvfilepath:str):
-        self.echo_blocks = True
+        outfile = None 
+        if output_csv is not None:
+            outfile = open(output_csv, 'w')
+            
+        self.incoming_data.reset()
+            
         with open(csvfilepath, 'r') as csv:
             lastActionDateTime = time.time()
             lastReadDateTime = lastActionDateTime
@@ -519,6 +559,8 @@ class SatelliteSimulator:
                     continue
                 if hexbytes[0] == '0' and hexbytes[1] == 'x':
                     bts = bytes.fromhex(hexbytes[2:])
+                    if littleEndian:
+                        bts = bytearray(reversed(bts))
                 else:
                     print(f"Bad hexbytes {hexbytes}")
                     continue 
@@ -528,31 +570,45 @@ class SatelliteSimulator:
                 while dtNow < nextActionDateTime:
                     if (lastReadDateTime + readInterval) < dtNow:
                         lastReadDateTime = dtNow
-                        print(f'Read\n{self.fetch_pending()}')
+                        
+                        responses = self.csv_sequence_get_responses(outfile)
+                        
+                        if responses is not None:
+                            if not isinstance(responses, list):
+                                responses = [responses]
+                            for rsp in responses:
+                                print(rsp)
+                                    
                     
                     time.sleep(0.2)
                     dtNow = time.time()
                     
-                print(f'Sending bytes: {bts} @ {nextActionDateTime}')
+                print(f'Sending bytes: {bts.hex()} @ {nextActionDateTime}')
                 self.send(bts)
                 lastActionDateTime = dtNow
                 
             print("Done processing CSV, waiting for one more read cycle")
             
         dtNow = time.time()
-        while dtNow < (firstActionDateTime + readInterval):
+        while dtNow < (firstActionDateTime + readInterval + 1):
             time.sleep(0.2)
             dtNow = time.time()
             
         time.sleep(0.5)
-        print(self.fetch_pending())
+        responses = self.csv_sequence_get_responses(outfile)
+        print(responses)
+        
+        if outfile is not None:
+            outfile.close()
         
     def wait(self, ms:int):
         time.sleep_ms(int(ms))
         
     def print_response(self):
         if not self.manual_response_fetching:
-            self.output_msg(f'Response: {self.read_pending()}')
+            v = self.read_pending()
+            self.output_msg(f'Response: {v}')
+            return v
         
     def monitor_experiment(self, update_freq_ms:int=500, result_interpreted=None):
         
@@ -621,10 +677,13 @@ class SatelliteSimulator:
         empty = bytearray([0x00] * 16)
         try:
             blk = self._i2c.readfrom(SlaveAddress, 16)
-            if self.echo_blocks:
-                print(','.join(map(lambda x: hex(x) if x>15 else f' {hex(x)}', blk)))
+            while blk != empty:
+                if self.echo_blocks:
+                    print(','.join(map(lambda x: hex(x) if x>15 else f' {hex(x)}', blk)))
+                self.incoming_data.extend(blk)
+                self.wait(2)
+                blk = self._i2c.readfrom(SlaveAddress, 16)
                 
-            self.incoming_data.extend(blk)
         except Exception as e:
             print(e)
             self.incoming_data.extend(empty)
@@ -741,7 +800,7 @@ class SatelliteSimulator:
         else:
             return (f"Unknown response: {blk}", b'')
         
-        
+    
     def fetch_pending(self):
         '''
             read blocks of 16 bytes until you hit 
@@ -754,13 +813,8 @@ class SatelliteSimulator:
         num_attempts = 0
         while len(self.incoming_data) and num_attempts < 20:
             # read til empty
-            if self.incoming_data == empty:
-                if not len(rcvd):
-                    # first is empty
-                    return 'EMPTY'
-                if len(rcvd) == 1:
-                    return rcvd[0] 
-                return rcvd
+            while len(self.incoming_data) >= len(empty) and self.incoming_data[:len(empty)] == empty:
+                self.incoming_data.consume(len(empty))
             
             try:
                 # print(f"Parsing {self.incoming_data}")
@@ -782,13 +836,15 @@ class SatelliteSimulator:
                 
             
             self.wait(35)
+            
+        return rcvd
                 
 
         
 class PacketConstructor(SatelliteSimulator):
     
     def __init__(self, dumpAscii:bool=True, accumulate_packets:bool=True, prefix:str='PKT: '):
-        super().__init__(0, 0, 0) 
+        super().__init__(baudrate=0) 
         self.dump_ascii = dumpAscii
         self.accumulate_packets = accumulate_packets
         self.extend_packets = True
