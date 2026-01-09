@@ -1,16 +1,46 @@
+'''
+Parser for Telemetry CSVs collected from satellite.
+
+You may just run:
+
+  python received_telemetry/parse_telemetry.py /tmp/spasic_telemetry_data.csv
+
+from the spasics/python directory.
+
+Interpretation of experiment specific data happens in the 
+report_interpreter.py file, located in this module.
+
+@author: Pat Deegan
+@copyright: Copyright (C) 2026 Pat Deegan, https://psychogenic.com
+'''
+
+
 import csv
 from i2c_client_test import packetdump 
 import argparse
 from spasic.cnc.response.response import *
-
+from received_telemetry.report_interpreter import StatusResultParserMap, ResultParserMap
 class ReportInterpreter:
     
     @classmethod
     def parseResult(cls, exp_id:int, results_bytes:bytearray):
+        if exp_id in ResultParserMap:
+            try:
+                return ResultParserMap[exp_id](results_bytes)
+            except Exception as e:
+                return f'{results_bytes} (RESULT PARSER FAIL {e})'
+        
         return results_bytes
 
     @classmethod
     def parseStatus(cls, exp_id:int, results_bytes:bytearray):
+        
+        if exp_id in StatusResultParserMap:
+            try:
+                return StatusResultParserMap[exp_id](results_bytes)
+            except Exception as e:
+                return f'{results_bytes} (STATUS PARSER FAIL {e})'
+        
         return cls.parseResult(exp_id, results_bytes)
 
 
@@ -76,6 +106,12 @@ class ResponsePrinter(ResponseOutput):
             self.output(f'STATUS EXP {resp.exp_id} running:{resp.running} runtime:{resp.runtime}s result:{result}', timestamp)
         
 
+    def handle_ResponseInfo(self, resp:ResponseStatus, timestamp:str=None):
+        t = time.gmtime(resp.synctime)
+        synctime = f"{t[0]}-{t[1]:02d}-{t[2]:02d} {t[3]:02d}:{t[4]:02d}:{t[5]:02d}"
+        self.output(f'INFO v{resp.v_maj}.{resp.v_min}.{resp.v_patch} synctime {synctime}', timestamp)
+        
+    
 class TelemetryParser:
     
     def __init__(self):
@@ -90,8 +126,10 @@ class TelemetryParser:
             payload_colname = None
             timestamp_colname = None
             
-            AllRecievedBytes = []
+            # AllRecievedBytes = []
             for row in reader:
+                
+                # they keep changing the column names, ugh.  Workaround here...
                 if payload_colname is None:
                     for cname in ['experiment name', 'teamname']:
                         if cname in row:
@@ -123,21 +161,26 @@ class TelemetryParser:
                 
                 try:
                     bts = bytes.fromhex(row[payload_colname])
-                    print(f'{row[payload_colname]} -> {bts}')
+                    # print(f'{row[payload_colname]} -> {bts}')
                 except ValueError:
                     #print(f"Could not get bits from {row[payload_colname]}\nSkipping")
                     continue
                 
                 # AllRecievedBytes.append(bts)
                 packetdump.set_simulated_pending([bts])
-                
-                while packetdump.have_pending():
+                while True:
                     parsedvals = packetdump.fetch_pending()
+                    if parsedvals is None:
+                        break 
                     if not isinstance(parsedvals, list):
                         parsedvals = [parsedvals]
+                    
+                    if not len(parsedvals):
+                        break 
+    
                     for resp in parsedvals:
-                        # print(resp)
-                        responseParser.handle(resp, row[timestamp_colname])
+                        if isinstance(resp, Response):
+                            responseParser.handle(resp, row[timestamp_colname])
 def getArgs():
     parser = argparse.ArgumentParser(
         description="Telemetry parser"

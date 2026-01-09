@@ -53,6 +53,9 @@ class Response:
                 self.payload += bts 
             except:
                 print(f"noapp {bts}") 
+                
+    def __len__(self):
+        return len(self.Header) + len(self.payload)
     
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.bytes}>'
@@ -348,14 +351,14 @@ class ResponseFactory:
     @classmethod
     def constructFrom(cls, blk):
         if not len(blk):
-            return (None, b'')
+            return None
         idx = 0
         while idx < len(blk) and blk[idx] == 0:
             idx += 1
         if idx:
-            blk = blk[idx:]
+            blk.consume(idx)
         if not len(blk):
-            return (None, b'')
+            return None
         
         rPoss = [
                 ResponseOK(),
@@ -371,18 +374,20 @@ class ResponseFactory:
         
         for rt in rPoss:
             try:
-                remainingBytes = rt.parseFrom(blk)
-                # print(f"Parsed a {rt} from block, {remainingBytes} leftover")
-                return (rt, remainingBytes)
+                rt.parseFrom(blk)
+                blk.consume(len(rt))
+                # print(f"Parsed a {rt} from block, {len(blk)} leftover")
+                return rt
             except ValueError:
+                # print(f"Parsing {blk} didn't work out")
                 pass
         
         #print(f'Could not get a match for {blk}')
         if len(blk) > 16:
             print(f"Could not get a match, dropping a byte from {blk}")
-            blk = blk[1:]
+            blk = blk.consume(1)
             # we're loosing a msg because of parse (see ResponseStatus) advance one byte and try again
             
-        return (None, blk)
+        return None
 
         

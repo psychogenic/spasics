@@ -112,6 +112,32 @@ class ExpResultCache:
             res = self.result
         return f'ID: {self.id} {run_str}{ex_str}: {res}'
 
+class IncomingDataStream:
+    def __init__(self):
+        self._data = bytearray()
+        
+    def extend(self, withdata:bytearray):
+        self._data.extend(withdata)
+        
+    def consume(self, length:int):
+        del self._data[:length]
+        
+    def __len__(self):
+        return len(self._data)
+    
+    def __eq__(self, other):
+        return self._data == other
+
+    def __getitem__(self, key):
+        return self._data[key]
+    
+    def __repr__(self):
+        if len(self._data) > 20:
+            return f'<IncomingDataStream {self._data[:20]}...>'
+        return f'<IncomingDataStream {self._data}>'
+
+
+
 class SatelliteSimulator:
     '''
         Talks to spasics satellite board over I2C
@@ -130,6 +156,8 @@ class SatelliteSimulator:
         self.run_quiet = run_quiet
         self.echo_blocks = False # echo blocks received
         self.manual_response_fetching = False # don't auto-fetch responses on commands
+        
+        self.incoming_data = IncomingDataStream()
         
     def output_msg(self, msg, force:bool=False):
         if force or not self.run_quiet:
@@ -595,15 +623,13 @@ class SatelliteSimulator:
             blk = self._i2c.readfrom(SlaveAddress, 16)
             if self.echo_blocks:
                 print(','.join(map(lambda x: hex(x) if x>15 else f' {hex(x)}', blk)))
-            return blk
+                
+            self.incoming_data.extend(blk)
         except Exception as e:
             print(e)
-            return empty
+            self.incoming_data.extend(empty)
     
     
-    def _parse_block(self, blk):
-        
-        return ResponseFactory.constructFrom(blk)
         
     def _parse_blockOLD(self, blk):
         if not len(blk):
@@ -723,12 +749,12 @@ class SatelliteSimulator:
             and interpret the data
         '''
         empty = bytearray([0x00]*16)
-        
         rcvd = []
-        while True:
+        self.read_block()
+        num_attempts = 0
+        while len(self.incoming_data) and num_attempts < 20:
             # read til empty
-            blk = self.read_block()
-            if blk == empty:
+            if self.incoming_data == empty:
                 if not len(rcvd):
                     # first is empty
                     return 'EMPTY'
@@ -737,28 +763,22 @@ class SatelliteSimulator:
                 return rcvd
             
             try:
-                (parsed_resp, left_overs) = self._parse_block(blk)
-                rcvd.append(parsed_resp)
+                # print(f"Parsing {self.incoming_data}")
+                parsed_resp =  ResponseFactory.constructFrom(self.incoming_data)
+                if parsed_resp is not None:
+                    rcvd.append(parsed_resp)
+                else:
+                    num_attempts += 1
+                    curlen = len(self.incoming_data)
+                    self.read_block()
+                    if curlen == len(self.incoming_data):
+                        # nothing new coming in... forget it.
+                        return rcvd
+                    
             except:
-                print(f"Issue parsing block (partial?) {blk}")
+                print(f"Issue parsing block (partial?) {self.incoming_data}")
                 self.wait(35)
                 return rcvd
-            else:
-                while left_overs and len(left_overs):
-                        try:
-                            (parsed_resp, left_overs) = self._parse_block(left_overs)
-                            if parsed_resp is None:
-                                more_stuff = self.read_block()
-                                if more_stuff is None or not len(more_stuff) or more_stuff == bytearray([0]*len(more_stuff)):
-                                    return rcvd
-                                left_overs += more_stuff
-                        except:
-                            print(f"Issue parsing block (partial?) {left_overs}")
-                            self.wait(35)
-                            return rcvd
-                        if parsed_resp is not None:
-                            rcvd.append(parsed_resp)
-                
                 
             
             self.wait(35)
@@ -779,8 +799,10 @@ class PacketConstructor(SatelliteSimulator):
         self._pending_resp_idx = 0
         
     def have_pending(self):
-        return len(self._pending_responses) - self._pending_resp_idx > 0
+        print(f"HAVE PENDING {len(self.incoming_data)}")
+        return len(self.incoming_data)
     def set_simulated_pending(self, resps):
+        
         self._pending_responses = []
         self._pending_resp_idx = 0
         for r in resps:
@@ -788,7 +810,9 @@ class PacketConstructor(SatelliteSimulator):
             if type(r) == str:
                 rbytes = bytes.fromhex(r)
             
-            self._pending_responses.append(rbytes)
+            
+            self.incoming_data.extend(rbytes)
+            # self._pending_responses.append(rbytes)
             
             
     
@@ -799,14 +823,10 @@ class PacketConstructor(SatelliteSimulator):
     
     def read_block(self):
         # self._packets.append(self.ReadAction)
-        if self._pending_resp_idx < len(self._pending_responses):
-            resp = self._pending_responses[self._pending_resp_idx]
-            self._pending_resp_idx += 1
-        else:
-            resp = bytearray(16)
-            
-        return resp
-    
+        #print("READBLK")
+        #if not len(self.incoming_data):
+        #    self.incoming_data.extend(bytearray(16))
+        pass
     
     def wait(self, ms:int):
         pass
