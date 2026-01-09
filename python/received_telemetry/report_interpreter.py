@@ -85,12 +85,16 @@ def resultparse_tt_um_andrewtron3000(result:bytearray) -> str:
 
 
 def resultparse_tt_um_MichaelBell_tinyQV(result:bytearray) -> str:
-    # Status is the same from all programs
-    status = "INVALID"
-    if result[9] < 4:
-        status = ["INVALID", "STARTED", "ABORTED", "FINISHED"][result[9]]
+    # Status is the same from all programs, but may not be present
+    status = ""
+    if len(result) > 9:
+        if result[9] < 4:
+            decoded_status = ["INVALID", "STARTED", "ABORTED", "FINISHED"][result[9]]
+        else:
+            decoded_status = f"{result[9]}??"
+        status = f"status: {decoded_status}  "
     
-    parsed = f"TinyQV status: {status}  Data: {result[0:8].hex()}\n"
+    parsed = f"TinyQV {status}Data: {result[0:8].hex()}\n"
 
     # Simple program result is uo_out, bytes_written, loops run
     uo_out = result[0]
@@ -180,8 +184,6 @@ ResultParserMap = {
 
 
 StatusResultParserMap = {
-    
-    8: resultparse_default, # tinyQV parser doesn't like shortened status "results"
 }
 
 
