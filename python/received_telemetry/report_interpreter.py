@@ -85,7 +85,37 @@ def resultparse_tt_um_andrewtron3000(result:bytearray) -> str:
 
 
 def resultparse_tt_um_MichaelBell_tinyQV(result:bytearray) -> str:
-    return resultparse_default(result)
+    # Status is the same from all programs
+    status = "INVALID"
+    if result[9] < 4:
+        status = ["INVALID", "STARTED", "ABORTED", "FINISHED"][result[9]]
+    
+    parsed = f"TinyQV status: {status}  Data: {result[0:8].hex()}\n"
+
+    # Simple program result is uo_out, bytes_written, loops run
+    uo_out = result[0]
+    bytes_written = int.from_bytes(result[1:5], 'little')
+    loops = int.from_bytes(result[5:9], 'little')
+    parsed += f"  Simple: Out: {uo_out:02x}   Bytes written: {bytes_written}  Loops: {loops}\n"
+
+    # Prime test result
+    val = 0
+    for i in range(5):
+        if result[i] == 0xff:
+            for j in range(4):
+                val += result[(i+1+j)%5] << (j*7)
+            break
+    status = "Invalid"
+    if val != 0:
+        if val == 0x204081:
+            status = "PRIME"
+        else:
+            status = f"Factor: {val}"
+    addr = result[5]
+    loops = int.from_bytes(result[6:9], 'little')
+    parsed += f"  Prime:  {status}  Addr: {addr:02x}  Loops: {loops}"
+
+    return parsed
 
 def resultparse_tt_um_lisa(result:bytearray) -> str:
     return resultparse_default(result)
