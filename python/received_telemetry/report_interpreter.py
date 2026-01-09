@@ -179,5 +179,9 @@ ResultParserMap = {
 }
 
 
-StatusResultParserMap = ResultParserMap
+StatusResultParserMap = {
+    
+    8: resultparse_default, # tinyQV parser doesn't like shortened status "results"
+}
+
 
