@@ -7,7 +7,7 @@ This is an archive of commands requested to be sent to the module:
 
 ### History ###
 
-spasic-exp-request003: requested 10 Jan 2026 06:08:24 -0500
+spasic-exp-request003: requested 10 Jan 2026 06:08:24 -0500, uploaded to module, [results received](../responses/exptelemetry_spasic_20260111_20260112-parsed.csv)
 
 spasic-exp-request002: requested 06 Jan 2026 17:20:40 -0500, actually uploaded to module, [results received](../responses/spasic_002_parsed.csv)
 
