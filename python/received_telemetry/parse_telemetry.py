@@ -187,9 +187,12 @@ class ResponseCVSOutput(ResponseOutput):
     def __init__(self, csv_out_path:str=None):
         self.csv_out = None 
         self.out_count = 0
+        self.csv_writer = None 
         if csv_out_path is not None:
             self.csv_out = open(csv_out_path, 'w')
-             
+            self.csv_writer = csv.writer(self.csv_out, delimiter=',',
+                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
     def close(self):
         if self.csv_out:
             self.csv_out.close()
@@ -200,19 +203,15 @@ class ResponseCVSOutput(ResponseOutput):
         return str(experiment_id)
     
     def output(self, row:CSVRow):
-        rows = []
         if not self.out_count:
-            rows.append( ','.join(row.headerList()) )
+            if self.csv_writer is not None:
+                self.csv_writer.writerow(row.headerList())
         
-        rows.append(','.join(row.toList()))
         
-        outstr = '\n'.join(rows)
-        
-        if self.csv_out is not None:
-            self.csv_out.write(outstr);
-            self.csv_out.write('\n')
+        if self.csv_writer is not None:
+            self.csv_writer.writerow(row.toList())
         else:
-            print(outstr)
+            print(','.join(row.toList()))
         
         self.out_count += 1
         

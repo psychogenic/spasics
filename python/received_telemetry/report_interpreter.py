@@ -16,10 +16,7 @@ To interpret results, just
 '''
 
 def resultparse_default(result:bytearray) -> str:
-    try:
-        return result.decode('ascii')
-    except UnicodeDecodeError:
-        return str(result)
+    return str(result)
     
 
 def resultparse_tt_um_oscillating_bones(result:bytearray) -> str:
@@ -33,7 +30,7 @@ def resultparse_tt_um_oscillating_bones(result:bytearray) -> str:
 def resultparse_rp2_temperature(result:bytearray) -> str:
     def reading_to_temp(start:int, end:int):
         v = int.from_bytes(result[start:end], 'little')
-        voltage = v * 3.3/2**16
+        voltage = v * 3.3/(2**16 - 1)
         temp = 27 - (voltage - 0.706) / 0.001721  
         return f'{temp:.2f}'
 
@@ -45,12 +42,12 @@ def resultparse_rp2_temperature(result:bytearray) -> str:
     if len(result) < 4:
         return parsed
     
-    parsed += f"min {reading_to_temp(2,4)} "
+    parsed += f"max {reading_to_temp(2,4)} "
     
     if len(result) < 6:
         return parsed
     
-    parsed += f"max {reading_to_temp(4,6)} "
+    parsed += f"min {reading_to_temp(4,6)} "
     if len(result) < 8:
         return parsed
     
@@ -147,7 +144,7 @@ def resultparse_tt_um_dlmiles_muldiv8_sky130faha(result:bytearray) -> str:
 def resultparse_tt_um_ttrpg_SEU(result:bytearray) -> str:
     return resultparse_default(result)
 def resultparse_tt_contributors(result:bytearray) -> str:
-    return resultparse_default(result)
+    return result.decode('ascii')
 
 def resultparse_tt_test_experiment(result:bytearray) -> str:
     return resultparse_default(result)
