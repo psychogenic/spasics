@@ -109,7 +109,7 @@ def resultparse_tt_um_qubitbytes_alive(result:bytearray) -> str:
         i += BITS_PER_CHAR
 
     text_content = "".join(decoded_text)
-    return f"Aliens Have been rickrolled! Random Decompressed Message from space: \"{text_content}\""
+    return f"Aliens Have been rickrolled! Decompressed Message from space: \"{text_content}\""
 
 def resultparse_tt_um_urish_spell(result:bytearray) -> str:
     return resultparse_default(result)
