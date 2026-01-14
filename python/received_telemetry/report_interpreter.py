@@ -69,7 +69,47 @@ def resultparse_tt_um_fstolzcode(result:bytearray) -> str:
     return resultparse_default(result)
 
 def resultparse_tt_um_qubitbytes_alive(result:bytearray) -> str:
-    return resultparse_default(result)
+    """
+    Decompresses QubitText format.
+    Table: a-z, space, ., !, ? (30 chars) -> 5 bits per char.
+    EOS marker is index 30.
+    """
+    # 1. Define Charset
+    char_set = [
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        ' ', '.', '!', '?'
+    ]
+
+    # Constants
+    BITS_PER_CHAR = 5
+    EOS_CODE = 30
+
+    # 2. Convert bytearray to bitstream string
+    bitstream = "".join(f"{byte:08b}" for byte in result)
+
+    decoded_text = []
+    i = 0
+    total_bits = len(bitstream)
+
+    # 3. Decode 5-bit chunks
+    while i + BITS_PER_CHAR <= total_bits:
+        chunk = bitstream[i : i + BITS_PER_CHAR]
+        code = int(chunk, 2)
+
+        if code == EOS_CODE:
+            break
+        
+        if code < len(char_set):
+            decoded_text.append(char_set[code])
+        else:
+            # Code 31 is the only invalid 5-bit code
+            decoded_text.append('\ufffd') 
+
+        i += BITS_PER_CHAR
+
+    text_content = "".join(decoded_text)
+    return f"Aliens Have been rickrolled! Random Decompressed Message from space: \"{text_content}\""
 
 def resultparse_tt_um_urish_spell(result:bytearray) -> str:
     return resultparse_default(result)
