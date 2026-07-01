@@ -14,7 +14,9 @@ Supported CLI commands
   model <GROUND|FLIGHT>      – set the model you connect to
   connect                    – open WebSocket and login
   disconnect                 – close WebSocket connection
+  
   command_windows [NUMDAYS]  – list command windows from now to now+NUMDAYS
+  
   command_queue  <WINDOWID> [NUMDAYS] [START]
                              – list commands for window
   send_commands <WINDOW_ID> <CSVFILE>
@@ -22,6 +24,11 @@ Supported CLI commands
   send_command_single <WINDOW_ID> <DEADLINE> <HEX_COMMAND>
                              – send the single command
   delete_command <CMDID>     – delete a previously queued command
+  
+  experiment_data <START> [DELTASECONDS]
+                             – get experimental data (START 0 == "now", relative int is seconds from now,
+                               giant int is unix timestamp)
+  
   help                       – show this help
   
   
@@ -39,7 +46,8 @@ import datetime as dt
 from typing import Optional, Union
 
 from hunity_api import HunityAPI, PortGroundModel, PortFlightModel, HunityAPI_ExpName, HunityAPI_User, HunityAPI_Password
-
+from hunity_api import ExperimentData, CommandInterpreter
+OutputRawResponses = False
 # ---------------------------------------------------------------------------
 # Tab-completion
 # ---------------------------------------------------------------------------
@@ -50,6 +58,7 @@ COMMANDS = [
     "command_delete",
     "send_command_single",
     "delete_command",
+    "experiment_data",
     "poll", "help", "exit", "quit",
 ]
 VARIABLES = ["exp_id", "user", "password", "port"]
@@ -120,7 +129,7 @@ def _little_endian_hex_to_big_endian_upper(hex_str: str) -> str:
 # ---------------------------------------------------------------------------
 
 class CLIState:
-    def __init__(self) -> None:
+    def __init__(self, expdata_wrapper_class:ExperimentData = None, cmd_interpreter:CommandInterpreter = None) -> None:
         self.vars: dict[str, str] = {
             "exp_id":   "" if HunityAPI_ExpName is None else HunityAPI_ExpName,  
             "user":     "" if HunityAPI_User is None else HunityAPI_User, 
@@ -129,6 +138,8 @@ class CLIState:
         }
         self.client: Optional[HunityAPI] = None
         self.connected: bool = False
+        self.expdata_wrapper: ExperimentData = expdata_wrapper_class 
+        self.cmd_interpreter: CommandInterpreter = cmd_interpreter
         self._command_windows = {}
         
     @property
@@ -171,6 +182,74 @@ class CLIState:
     # ------------------------------------------------------------------
     # Command handlers (all async so they can await client calls)
     # ------------------------------------------------------------------
+    async def cmd_experiment_data(self, args: list[str]) -> None:
+        if len(args) < 1:
+            print("Usage: experiment_data <START> [DELTADAYS] [OUTFILE]")
+            return
+        exp_id = self.vars["exp_id"]
+        if not exp_id:
+            print("exp_id is not set. Use: set exp_id <value>")
+            return
+    
+        starttime = None 
+        try:
+            starttime = int(args[0])
+        except ValueError:
+            print(f"START must be an integer, got {args[0]}")
+            return
+        
+        if starttime is not None and starttime != 0:
+            if starttime > 1e6:
+                start = self._from_unix(starttime)
+            else:
+                start = datetime.now(tz=timezone.utc) + timedelta(seconds=starttime)
+        else:
+            start = datetime.now(tz=timezone.utc)
+        
+        endsecs = 2*24*60*60
+        if len(args) > 1:
+            try:
+                enddays = float(args[1]) 
+                if endsecs < 0:
+                    endsecs = int(enddays*24*60*60)
+            except ValueError:
+                print(f"DELTADAYS must be int, got {args[1]}")
+                return 
+                
+        end = start + timedelta(seconds=endsecs)
+        
+        reslines = await self.client.getEXPData(exp_id, start, end, self.expdata_wrapper)
+        
+        print(f"Got {len(reslines)} results")
+        if self.expdata_wrapper is None:
+            outFile = sys.stdout 
+            if len(args) > 2:
+                outFilePath = args[2]
+                try:
+                    outFile = open(outFilePath, 'w')
+                except:
+                    outFile = sys.stdout
+            standardFormat = True 
+            if standardFormat:
+                print('"id","internaltime","timestampDate","timestampUnix","teamname","telemetry"', file=outFile)
+            lcount = 0
+            for ln in reslines:  
+                if standardFormat:
+                    print(','.join([str(lcount), '0', f'"{ln[0].strftime("%Y-%m-%d %H:%M:%S")}"', 
+                                    str(int(ln[0].timestamp())), f'"{exp_id}"', ln[1]]), file=outFile)
+                    lcount += 1
+                else:
+                    print(ln[0].isoformat(), ",", ln[1], file=outFile)
+                        
+        
+        
+    
+    
+    
+    
+    
+    
+    
     async def cmd_deletecommand(self, args: list[str]) -> None:
         if len(args) < 1:
             print("Usage: delete_command <CMDID> [MAXID]")
@@ -289,7 +368,8 @@ class CLIState:
     async def cmd_poll(self, _args: list[str]) -> None:
         try:
             rsp = await self.client.get_response()
-            print(f"RESPONSE: {rsp}")
+            if OutputRawResponses:
+                print(f"RESPONSE: {rsp}")
             return rsp
         except: 
             print("Abort")
@@ -345,9 +425,9 @@ class CLIState:
         end = start + timedelta(days=numdays)
         
         try:
-            cmd_queue = await self.client.getcmdqueue(exp_id, start, end, window_id)
+            cmd_queue = await self.client.getcmdqueue(exp_id, start, end, window_id, self.cmd_interpreter)
         except Exception as exc:
-            print(f"command_windows error: {exc}")
+            print(f"getcmdqueue error: {exc}")
             return
         
         print(f"{len(cmd_queue)} commands returned")
@@ -359,7 +439,8 @@ class CLIState:
     async def cmd_command_windows(self, args: list[str]) -> None:
         if not self._require_connected():
             return
-
+        if not args:
+            print("command_windows <NUMDAYS>")
         try:
             numdays = float(args[0]) if args else 1.0
         except ValueError:
@@ -382,15 +463,42 @@ class CLIState:
         # Column widths
         id_w = max(len("ID"), max(len(str(w.id)) for w in windows))
         dt_w = 25  # ISO-8601 datetime
-        print(f"  {'ID':<{id_w}}  {'Start':<{dt_w}}  {'End':<{dt_w}}")
-        print(f"  {'-'*id_w}  {'-'*dt_w}  {'-'*dt_w}")
+        ts_w = 12
+        print(f"  {'ID':<{id_w}}  {'Start TS':<{ts_w}} {'Start':<{dt_w}}  {'End':<{dt_w}}")
+        print(f"  {'-'*id_w}  {'-'*ts_w} {'-'*dt_w} {'-'*dt_w}")
         for w in windows:
             self._command_windows[w.id] = w
             print(
                 f"  {w.id:<{id_w}}  "
+                f"{int(w.start.timestamp()):<{ts_w}}  "
                 f"{w.start.isoformat():<{dt_w}}  "
+                
                 f"{w.end.isoformat():<{dt_w}}"
             )
+            
+    def sat_command_execute_time(self, window_id:int, execute_time_requested:int):
+        '''
+            Returns the command execution time:
+            
+            * relative to window start, if execute_time_requested <= 0, or
+            
+            * as-is
+        
+        '''
+        execute_time = execute_time_requested
+        if execute_time_requested <= 0:
+            if window_id not in self._command_windows:
+                print("I don't know this window to be able to convert relative time-- use command_windows to fetch first")
+                return None
+            
+            cw = self._command_windows[window_id]
+            execute_time = cw.start + timedelta(seconds = abs(execute_time_requested))
+            
+            print(f"Execute time: {execute_time.isoformat()} ")
+            
+        return execute_time 
+            
+        
 
     async def cmd_send_single_command(self, args: list[str]) -> None:
         if not self._require_connected():
@@ -417,18 +525,8 @@ class CLIState:
         except ValueError:
             print(f"DEADLINE must be an int (not '{args[1]}'")
             return 
-            
-        if execute_time <= 0:
-            if window_id not in self._command_windows:
-                print("I don't know this window to be able to convert relative time-- use command_windows to fetch first")
-                return 
-            
-            cw = self._command_windows[window_id]
-            execute_time = cw.start + timedelta(seconds = abs(execute_time))
-            
-            if execute_time > cw.end:
-                print("Execute time extends beyond window")            
-            
+        
+        execute_time = self.sat_command_execute_time(window_id, execute_time)
         write_hex = args[2]
         
         try:
@@ -506,8 +604,10 @@ class CLIState:
                 print(f"  Line {lineno}: bad deadline {deadline_str!r} — skipping")
                 fail_count += 1
                 continue
+                
+            execute_time = self.sat_command_execute_time(window_id, deadline_offset)
 
-            execute_time = now + timedelta(seconds=deadline_offset)
+            # execute_time = now + timedelta(seconds=deadline_offset)
 
             try:
                 command_hex = _little_endian_hex_to_big_endian_upper(write_hex)
@@ -561,10 +661,12 @@ class CLIState:
             "send_command_single": self.cmd_send_single_command,
             "delete_command": self.cmd_deletecommand,
             "command_delete": self.cmd_deletecommand,
+            "experiment_data": self.cmd_experiment_data,
             "poll": self.cmd_poll,
             "help": self.cmd_help
         }
         
+        retVal = None
         if cmd in cmdMap:
             c = cmdMap[cmd]
             retVal = await c(args)
@@ -581,8 +683,8 @@ class CLIState:
 # Main loop
 # ---------------------------------------------------------------------------
 
-async def main() -> None:
-    state = CLIState()
+async def climain(exp_data_wrapper_class:ExperimentData = None, command_interpreter:CommandInterpreter = None) -> None:
+    state = CLIState(exp_data_wrapper_class, command_interpreter)
     print("HUNITY CLI — type 'help' for commands, 'exit' to quit.")
 
     while True:
@@ -601,6 +703,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        asyncio.run(climain())
     except KeyboardInterrupt:
         pass

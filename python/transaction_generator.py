@@ -20,7 +20,11 @@ from i2c_client_test import packetdump
 import csv 
 import datetime
 
+UseWindowRelativeTimes = True
+
 DeviceBusIdDefault = 0x56
+
+VerboseOutput = False
 
 class TSPacket:
     def __init__(self, action, ts, packets=None):
@@ -37,7 +41,7 @@ class CSVGenerator:
         self.tspackets = [] 
         self.current_pack = None 
         self.include_bytes_column = False
-        self.hexpack_little_endian = True
+        self.hexpack_little_endian = False
         packetdump.extend_packets = True
         self.bus_id = device_bus_id
         
@@ -143,8 +147,11 @@ class CSVGenerator:
                 if firstDatetime is None:
                     firstDatetime = curDateTime
                 else:
-                    deltaT = curDateTime - firstDatetime
-                    delta_s = deltaT.total_seconds()
+                    if UseWindowRelativeTimes:
+                        delta_s = tspack.timestamp
+                    else:
+                        deltaT = curDateTime - firstDatetime
+                        delta_s = deltaT.total_seconds()
                 
                 lastDatetime = curDateTime
                 
@@ -160,7 +167,10 @@ class CSVGenerator:
                     else:
                         action = tspack.action
                     
-                    deadline = f'-{int(delta_s)}' if delta_s else '0'
+                    if UseWindowRelativeTimes:
+                        deadline = f'{int(delta_s)}' if delta_s else '0'
+                    else:
+                        deadline = f'-{int(delta_s)}' if delta_s else '0'
                     
                     if self.include_bytes_column:
                         row = [tspack.timestamp, action, writepacks, hexpacks, delta_s]
@@ -194,7 +204,8 @@ class CSVGenerator:
         if len(row['experiment id']):
             try:
                 expid = int(row['experiment id'])
-                print(f"EXPID {expid}")
+                if VerboseOutput:
+                    print(f"EXPID {expid}")
             except:
                 print(f"Invalid experiment {row['experiment id']}")
         bts = self.get_parms(row)
@@ -216,12 +227,23 @@ def generate(csvfile:str) -> CSVGenerator:
         reader = csv.DictReader(f, delimiter=',', quotechar='"')
         
         lastread = None
+        rowCount = 0
+        seconds_counter = 0
         for row in reader:
-            if not len(row['packet datetime']):
-                continue 
+            # print(f"ROW {row}")
+            if UseWindowRelativeTimes:
+                if not len(row['delta s']) and rowCount:
+                    continue
+            else:
+                if not len(row['packet datetime']):
+                    continue 
             if not len(row['action']):
                 continue 
             
+            
+            rowCount += 1
+            if VerboseOutput:
+                print(f'Line {rowCount}: {row}')
             
             # print(row)
             
@@ -230,22 +252,35 @@ def generate(csvfile:str) -> CSVGenerator:
             if not hasattr(generator, action):
                 print(f"Unsupported action {action}")
                 continue
+                
             
-            dt = datetime.datetime.fromisoformat(row['packet datetime'])
+            needFlush = False
+            if UseWindowRelativeTimes:
+                cur_delay = int(row['delta s']) if len(row['delta s']) else 0
+                dt = -1 * (seconds_counter + cur_delay)
+                seconds_counter += cur_delay
+                if lastread is None or cur_delay > 9:
+                    needFlush = True
+            else:
+                dt = datetime.datetime.fromisoformat(row['packet datetime'])
+                if lastread is None or (dt - lastread) > datetime.timedelta(seconds = 9):
+                    needFlush = True 
             print(f"Calling ACTION {action} @ {dt}")
             act = getattr(generator, action)
             act(dt, row)
-            if lastread is None or (dt - lastread) > datetime.timedelta(seconds = 9):
+            
+            if lastread is None or needFlush:
                 generator.flush()
                 lastread = dt
-        if dt:
-            generator.flush()
+        
+        generator.flush()
                 
     return generator
 
 
 import argparse 
 def getArgs():
+    global VerboseOutput
     parser = argparse.ArgumentParser(
         description="Telemetry parser"
     )
@@ -262,8 +297,14 @@ def getArgs():
         type=str,
         help='The path to the output CSV to generate for BME'
     )
+    parser.add_argument('--verbose', action=argparse.BooleanOptionalAction, 
+        default=False)
     
-    return parser.parse_args()
+    args =  parser.parse_args()
+    if args.verbose:
+        VerboseOutput = True
+        
+    return args
 
 if __name__ == '__main__':
     args = getArgs()

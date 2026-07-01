@@ -12,7 +12,7 @@ Requires: websockets (pip install websockets)
         await api.login("spasic", "pass")
         
         data = await api.getEXPData("spasic", 
-                         dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=12),
+                         dt.datetime.now(dt.timezone.utc) - timedelta(hours=12),
                          dt.datetime.now(dt.timezone.utc))
         print(data)
         
@@ -27,7 +27,7 @@ import time
 import ssl
 import json
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import datetime as dt
 from dataclasses import dataclass
 from typing import Union
@@ -58,6 +58,16 @@ except:
 # ---------------------------------------------------------------------------
 # Data types returned by the API
 # ---------------------------------------------------------------------------
+class ModuleCommand:
+    def __init__(self):
+        pass 
+class CommandInterpreter:
+    def __init__(self):
+        pass 
+    
+    def process(self, raw_command:str) -> ModuleCommand:
+        print("TODO:Override CommandInterpreter to provide implementation")
+
 
 @dataclass
 class CommandWindow:
@@ -85,13 +95,23 @@ class QueuedCommand:
     def __repr__(self) -> str:
         return (
             f"QueuedCommand(command_id={self.command_id}, "
-            f"experiment_id={self.experiment_id!r}, "
             f"command={self.command!r}, "
+            f"timestamp={self.timestamp.isoformat()}, "
+            f"experiment_id={self.experiment_id!r}, "
             f"windowid={self.windowid}, "
-            f"sent={self.sent}, "
-            f"timestamp={self.timestamp.isoformat()})"
+            f"sent={self.sent}) "
         )
 
+@dataclass 
+class ExperimentData:
+    timestamp: datetime 
+    raw_data: str
+    
+    def __repr__(self) -> str:
+        return (
+            f"ExperimentData(timestamp={self.timestamp.isoformat()}, "
+            f"data={self.raw_data})"
+        )
 
 # ---------------------------------------------------------------------------
 # Main client class
@@ -226,7 +246,23 @@ class HunityAPI:
         if OutputVerbose:
             print(f"SENDING COMMAND: {message}")
         await self._ws.send(message)
+        time.sleep(0.1)
         raw = await self.get_response()
+        
+        # they keep adding trailing ',' on lists and objects
+        # clean those up so we can parse
+        chrs = list(raw)
+        i = len(chrs) - 1
+        while i > 0:
+            if chrs[i] == ',':
+                chrs[i] = ' '
+            elif chrs[i] in ['}', ']', '\n', '\r', ' ', '\t']:
+                pass 
+            else:
+                break 
+            i -= 1
+            
+        raw = ''.join(chrs)
         try:
             return json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -278,6 +314,7 @@ class HunityAPI:
         experiment_id: str,
         start: Union[int, datetime] = None,
         end: Union[int, datetime] = None,
+        data_wrapper: ExperimentData = None
     ) -> str:
         """
         Retrieve experiment data for the given time window.
@@ -290,16 +327,14 @@ class HunityAPI:
 
         Returns
         -------
-        str
-            CSV-style text: one "timestamp,data" line per record,
-            with timestamps rendered as ISO-8601 UTC datetime strings.
+            list of [datetime, data]
         """
         if start is None:
             start = datetime.now()
         if end is None:
-            end = dt.timedelta(days=2)
+            end = timedelta(days=2)
             
-        if isinstance(end, dt.timedelta):
+        if isinstance(end, timedelta):
             end = start + end
             
         t_start = self._to_unix(start)
@@ -311,13 +346,18 @@ class HunityAPI:
             print(f"getEXPData error: {exc}")
             raise
 
-        lines: list[str] = []
-        datas: dict = payload.get("datas", {})
-        for _exp_id, records in datas.items():
-            for record in records:
-                dt = self._from_unix(record["unixtimestamp"])
-                lines.append(f"{dt.isoformat()},{record['data']}")
-
+        lines: list[list] = []
+        try:
+            datas: dict = payload.get("datas", {})
+            for _exp_id, records in datas.items():
+                for record in records:
+                    dt = self._from_unix(record["unixtimestamp"])
+                    if data_wrapper is not None:
+                        lines.append(data_wrapper(timestamp=dt, raw_data=record['data']))
+                    else:
+                        lines.append([dt, record['data']])
+        except Exception as e:
+            print(f"Could not get 'datas' from {payload}: {e}")
         return lines
 
     async def getCMDWindows(
@@ -341,9 +381,9 @@ class HunityAPI:
         if start is None:
             start = datetime.now()
         if end is None:
-            end = dt.timedelta(days=2)
+            end = timedelta(days=2)
             
-        if isinstance(end, dt.timedelta):
+        if isinstance(end, timedelta):
             end = start + end
         
         t_start = self._to_unix(start)
@@ -447,6 +487,7 @@ class HunityAPI:
         start: Union[int, datetime],
         end: Union[int, datetime],
         windowid: int,
+        cmd_interpreter: CommandInterpreter = None
     ) -> list[QueuedCommand]:
         """
         Retrieve the command queue for an experiment within a time window.
@@ -479,12 +520,17 @@ class HunityAPI:
             # handle both the clean and the space-padded variants defensively.
             cmd_id = item.get("command_id") or item.get("command_id ")
             exp_id = item.get("experiment_id") or item.get("experiment_id ")
+            
+            if cmd_interpreter is not None:
+                cmd = cmd_interpreter.process(item["command"])
+            else:
+                cmd = item["command"]
             queue.append(
                 QueuedCommand(
                     command_id=int(cmd_id),
                     timestamp=self._from_unix(item["unixtimestamp"]),
                     experiment_id=str(exp_id),
-                    command=item["command"],
+                    command=cmd,
                     windowid=item["windowid"],
                     sent=item["sent"],
                 )
@@ -502,7 +548,7 @@ async def main():
             return
         
         data = await api.getEXPData("spasic", 
-                         dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=12),
+                         dt.datetime.now(dt.timezone.utc) - timedelta(hours=12),
                          dt.datetime.now(dt.timezone.utc))
         print(data)
     
